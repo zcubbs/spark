@@ -5,26 +5,10 @@ tasks:
   default:
     desc: Run Build
     cmds:
-      - task: web
       - task: server
-      - task: cli
-
-  ############################################################
-  web:
-    desc: Build Web App
-    dir: web
-    cmds:
-      - npm install
-      - npm run build
 
   ############################################################
   server:
     desc: Build Server
     cmds:
       - go build -o bin/server ./cmd/server/main.go
-
-  ############################################################
-  cli:
-    desc: Build CLI
-    cmds:
-      - go build -o bin/cli ./cmd/cli/main.go
