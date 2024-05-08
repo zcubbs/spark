@@ -125,7 +125,10 @@ func (r *Runner) GetLogs(ctx context.Context, options Options) (string, error) {
 		}
 		defer logs.Close()
 		buf := new(bytes.Buffer)
-		buf.ReadFrom(logs)
+		_, err = buf.ReadFrom(logs)
+		if err != nil {
+			return "", err
+		}
 		logsAggregate += buf.String() + "\n" // Collect logs for all pods
 	}
 
