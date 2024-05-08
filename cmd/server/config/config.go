@@ -9,6 +9,7 @@ type Configuration struct {
 	GrpcServer        GrpcServerConfig `mapstructure:"grpc_server"`
 	Auth              AuthConfig       `mapstructure:"auth"`
 	InitAdminPassword string           `mapstructure:"init_admin_password"`
+	KubeconfigPath    string           `mapstructure:"kubeconfig_path"`
 
 	// Version is the version of the application.
 	Version string `json:"version"`

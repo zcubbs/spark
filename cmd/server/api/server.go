@@ -12,6 +12,7 @@ import (
 	"github.com/zcubbs/spark/gen/openapi"
 	sparkPb "github.com/zcubbs/spark/gen/proto/go/spark/v1"
 	"github.com/zcubbs/spark/internal/logger"
+	k8sJobs "github.com/zcubbs/spark/pkg/k8s/jobs"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/reflection"
@@ -27,6 +28,7 @@ type Server struct {
 
 	cfg       *config.Configuration
 	embedOpts []EmbedAssetsOpts
+	k8sRunner *k8sJobs.Runner
 }
 
 func NewServer(cfg *config.Configuration) (*Server, error) {
@@ -38,9 +40,15 @@ func NewServer(cfg *config.Configuration) (*Server, error) {
 	}
 	embeds = append(embeds, swaggerEmbed)
 
+	k8sRunner, err := k8sJobs.New(cfg.KubeconfigPath)
+	if err != nil {
+		return nil, fmt.Errorf("cannot create k8s client: %w", err)
+	}
+
 	s := &Server{
 		cfg:       cfg,
 		embedOpts: embeds,
+		k8sRunner: k8sRunner,
 	}
 
 	return s, nil

@@ -175,6 +175,11 @@
         "command": {
           "type": "string",
           "title": "command of the job"
+        },
+        "timeout": {
+          "type": "integer",
+          "format": "int32",
+          "title": "timeout of the job"
         }
       }
     },

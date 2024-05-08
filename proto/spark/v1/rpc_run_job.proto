@@ -11,6 +11,8 @@ message RunJobRequest {
   string image = 3;
   // command of the job
   string command = 4;
+  // timeout of the job
+  int32 timeout = 5;
 }
 
 message RunJobResponse {
