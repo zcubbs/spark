@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package spark.v1;
+
+message PingRequest {
+}
+
+message PingResponse {
+  string message = 1;
+  string version = 2;
+  string commit = 3;
+  string build_time = 4;
+}

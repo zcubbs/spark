@@ -1,0 +1,27 @@
+version: '3'
+
+env:
+  GOOS: "{{OS}}"
+
+vars:
+  GO_PACKAGE: github.com/zcubbs/grill
+  GO_PACKAGE_SHORT: grill
+  SCRIPTS_DIR: scripts
+  PROTO_DIRS: "proto"
+
+includes:
+  scan: .taskfiles/scan.yaml
+  test: .taskfiles/test.yaml
+  buf: .taskfiles/buf.yaml
+  build: .taskfiles/build.yaml
+  docker: .taskfiles/docker.yaml
+  run: .taskfiles/run.yaml
+  lint: .taskfiles/lint.yaml
+  tools: .taskfiles/tools.yaml
+  containers: .taskfiles/containers.yaml
+  mock: .taskfiles/mock.yaml
+  evans: .taskfiles/evans.yaml
+
+tasks:
+  default:
+    cmd: task -l

@@ -1,0 +1,243 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "User API",
+    "version": "v1"
+  },
+  "tags": [
+    {
+      "name": "SparkService"
+    }
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/v1/ping": {
+      "get": {
+        "summary": "Ping the server",
+        "description": "Ping the server",
+        "operationId": "SparkService_Ping",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1PingResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "Ops"
+        ]
+      }
+    },
+    "/v1/spark/run_job": {
+      "post": {
+        "summary": "Run a job",
+        "description": "Run a job",
+        "operationId": "SparkService_RunJob",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "schema": {
+              "type": "string",
+              "format": "string"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1RunJobRequest"
+            }
+          }
+        ],
+        "tags": [
+          "Spark"
+        ]
+      }
+    },
+    "/v1/spark/stream_job_logs": {
+      "post": {
+        "summary": "Stream job logs",
+        "description": "Stream job logs",
+        "operationId": "SparkService_StreamJobLogs",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "schema": {
+              "type": "string",
+              "format": "string"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1StreamJobLogsRequest"
+            }
+          }
+        ],
+        "tags": [
+          "Spark"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "protobufAny": {
+      "type": "object",
+      "properties": {
+        "@type": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": {}
+    },
+    "rpcStatus": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    },
+    "v1PingResponse": {
+      "type": "object",
+      "properties": {
+        "message": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "commit": {
+          "type": "string"
+        },
+        "buildTime": {
+          "type": "string"
+        }
+      }
+    },
+    "v1RunJobRequest": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "title": "name of the job"
+        },
+        "namespace": {
+          "type": "string",
+          "title": "namespace of the job"
+        },
+        "image": {
+          "type": "string",
+          "title": "image of the job"
+        },
+        "command": {
+          "type": "string",
+          "title": "command of the job"
+        }
+      }
+    },
+    "v1RunJobResponse": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "title": "job id"
+        },
+        "name": {
+          "type": "string",
+          "title": "job name"
+        },
+        "namespace": {
+          "type": "string",
+          "title": "job namespace"
+        },
+        "image": {
+          "type": "string",
+          "title": "job image"
+        },
+        "command": {
+          "type": "string",
+          "title": "job command"
+        },
+        "status": {
+          "type": "string",
+          "title": "job status"
+        },
+        "created": {
+          "type": "string",
+          "title": "job created time"
+        },
+        "started": {
+          "type": "string",
+          "title": "job started time"
+        },
+        "finished": {
+          "type": "string",
+          "title": "job finished time"
+        },
+        "logs": {
+          "type": "string",
+          "title": "job logs"
+        }
+      }
+    },
+    "v1StreamJobLogsRequest": {
+      "type": "object",
+      "properties": {
+        "jobId": {
+          "type": "string"
+        }
+      }
+    },
+    "v1StreamJobLogsResponse": {
+      "type": "object",
+      "properties": {
+        "log": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

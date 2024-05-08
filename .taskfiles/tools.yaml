@@ -1,0 +1,108 @@
+version: '3'
+
+tasks:
+  ############################################################
+  # Bootstrap the development environment
+  bootstrap:
+    desc: Bootstrap the project
+    cmds:
+      - task: install:golangci-lint
+      - task: install:gosec
+      - task: install:buf
+      - task: install:mockgen
+
+  ############################################################
+  # Install grpcurl
+  install:grpcurl:
+    desc: Install grpcurl
+    cmds:
+      - task: install:grpcurl:{{OS}}
+
+  install:grpcurl:windows:
+    desc: Install grpcurl
+    cmds:
+      - go install github.com/fullstorydev/grpcurl/cmd/grpcurl@latest
+
+  install:grpcurl:darwin:
+    desc: Install grpcurl
+    cmds:
+      - brew install grpcurl
+
+  ############################################################
+  # Install golangci-lint
+  install:golangci-lint:
+    desc: Install golangci-lint
+    cmds:
+      - go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+
+  ############################################################
+  # Install gosec
+  install:gosec:
+    desc: Install gosec
+    cmds:
+      - go install github.com/securego/gosec/v2/cmd/gosec@latest
+
+  ############################################################
+  # Install protoc
+  install:protoc:
+    desc: Install protoc
+    cmds:
+      - go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28
+      - go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2
+      - go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway@v2.17.0
+      - go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2@v2.17.0
+
+  ############################################################
+  # Install evans
+  install:evans:
+    desc: Install evans
+    cmds:
+      - task: install:evans:{{OS}}
+
+  install:evans:windows:
+    desc: Install evans
+    cmds:
+      - go install github.com/ktr0731/evans@latest
+
+  install:evans:darwin:
+    desc: Install evans
+    cmds:
+      - brew tap ktr0731/evans
+      - brew install evans
+
+  ############################################################
+  # Install air
+  install:air:
+    desc: Install air
+    cmds:
+      - go install github.com/cosmtrek/air@latest
+
+  ############################################################
+  # Install Buf
+  install:buf:
+    desc: Install Buf
+    cmds:
+      - task: install:buf:{{OS}}
+
+  install:buf:windows:
+    desc: Install Buf
+    cmds:
+      - scoop install buf
+
+  install:buf:darwin:
+    desc: Install Buf
+    cmds:
+      - brew tap bufbuild/buf
+      - brew install buf
+
+  install:buf:linux:
+    desc: Install Buf
+    cmds:
+      - task: install:buf:darwin
+
+  ############################################################
+  # Install mockgen
+  install:mockgen:
+    desc: Install mockgen
+    cmds:
+      - go install go.uber.org/mock/mockgen@latest

@@ -1,0 +1,20 @@
+version: '3'
+
+tasks:
+  ############################################################
+  default:
+    desc: Run Containers
+    cmds:
+      - task: up
+
+  ############################################################
+  up:
+    desc: Run Containers
+    cmds:
+      - echo "Running Containers"
+  ############################################################
+  down:
+    desc: Stop Containers
+    cmds:
+      - echo "Stopping Containers"
+

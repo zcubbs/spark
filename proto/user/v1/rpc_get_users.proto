@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package user.v1;
+
+import "user/v1/user.proto";
+
+message GetUsersRequest {}
+
+message GetUsersResponse {
+  repeated User users = 1;
+}

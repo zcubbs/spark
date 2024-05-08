@@ -1,0 +1,115 @@
+syntax = "proto3";
+
+package user.v1;
+
+import "user/v1/rpc_create_user.proto";
+import "user/v1/rpc_login_user.proto";
+import "user/v1/rpc_logout_user.proto";
+import "user/v1/rpc_get_users.proto";
+import "user/v1/rpc_refresh_token.proto";
+import "google/api/annotations.proto";
+import "protoc-gen-openapiv2/options/annotations.proto";
+
+option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_swagger) = {
+  info: {
+    title: "User API";
+    version: "v1";
+  };
+};
+
+service UserService {
+  rpc CreateUser (CreateUserRequest) returns (CreateUserResponse){
+    option (google.api.http) = {
+      post: "/v1/user/create"
+      body: "*"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      tags: "User"
+      summary: "Create a user"
+      description: "Create a user"
+      responses: {
+        key: "200"
+        value: {
+          description: "Success"
+          schema: {
+            json_schema: {type: STRING}
+          }
+        }
+      }
+    };
+  }
+
+  rpc LoginUser (LoginUserRequest) returns (LoginUserResponse){
+    option (google.api.http) = {
+      post: "/v1/user/login"
+      body: "*"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      tags: "User"
+      summary: "Login a user"
+      description: "Login a user"
+      responses: {
+        key: "200"
+        value: {
+          description: "Success"
+          schema: {
+            json_schema: {type: STRING}
+          }
+        }
+      }
+    };
+  }
+
+  rpc LogoutUser (LogoutUserRequest) returns (LogoutUserResponse){
+    option (google.api.http) = {
+      post: "/v1/user/logout"
+      body: "*"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      tags: "User"
+      summary: "Logout a user"
+      description: "Logout a user"
+      responses: {
+        key: "200"
+        value: {
+          description: "Success"
+          schema: {
+            json_schema: {type: STRING}
+          }
+        }
+      }
+    };
+  }
+
+  rpc RefreshToken(RefreshTokenRequest) returns (RefreshTokenResponse) {
+    option (google.api.http) = {
+      post: "/v1/refresh_token"
+      body: "*"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      tags: "User"
+      summary: "Refresh a user's access token";
+      description: "Refresh a user's access token";
+    };
+  }
+
+  rpc GetUsers (GetUsersRequest) returns (GetUsersResponse){
+    option (google.api.http) = {
+      get: "/v1/user/get"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      tags: "User"
+      summary: "Get all users"
+      description: "Get all users"
+      responses: {
+        key: "200"
+        value: {
+          description: "Success"
+          schema: {
+            json_schema: {type: STRING}
+          }
+        }
+      }
+    };
+  }
+}

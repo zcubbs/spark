@@ -1,0 +1,9 @@
+version: '3'
+
+tasks:
+
+  ############################################################
+  default:
+    desc: Run evans
+    cmds:
+      - evans -r repl --host localhost --port 9000

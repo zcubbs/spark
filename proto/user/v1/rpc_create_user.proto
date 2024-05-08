@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package user.v1;
+
+import "user/v1/user.proto";
+
+message CreateUserRequest {
+  string username = 1;
+  string full_name = 2;
+  string email = 3;
+  string password = 4;
+  Role role = 5;
+}
+
+message CreateUserResponse {
+  User user = 1;
+}
+

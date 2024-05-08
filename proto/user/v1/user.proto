@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package user.v1;
+
+import "google/protobuf/timestamp.proto";
+import "buf/validate/validate.proto";
+
+enum Role {
+  ROLE_UNSPECIFIED = 0;
+  ROLE_ADMIN = 1;
+  ROLE_USER = 2;
+}
+
+message User {
+  string username = 1;
+  string full_name = 2 [(buf.validate.field).string.min_len = 1];
+  string email = 3 [(buf.validate.field).string.email = true];
+  Role role = 4;
+  google.protobuf.Timestamp password_changed_at = 5;
+  google.protobuf.Timestamp created_at = 6;
+}
+

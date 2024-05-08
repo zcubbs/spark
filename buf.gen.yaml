@@ -1,0 +1,33 @@
+version: v1
+managed:
+  enabled: true
+  go_package_prefix:
+    default: .
+    except:
+      - buf.build/googleapis/googleapis
+      - buf.build/grpc-ecosystem/grpc-gateway
+      - buf.build/bufbuild/protovalidate
+plugins:
+  - plugin: buf.build/protocolbuffers/go:v1.28.1
+    revision: 4
+    out: gen/proto/go
+    opt:
+      - paths=source_relative
+  - plugin: buf.build/grpc/go:v1.2.0
+    revision: 4
+    out: gen/proto/go
+    opt:
+      - paths=source_relative
+      - require_unimplemented_servers=false
+  - plugin: grpc-gateway
+    out: gen/proto/go
+    opt:
+      - paths=source_relative
+      - allow_repeated_fields_in_body=true
+  - plugin: openapiv2
+    out: gen/openapi
+    strategy: all
+    opt:
+      - allow_repeated_fields_in_body=true
+      - allow_merge=false
+      - merge_file_name=api-docs

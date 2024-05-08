@@ -1,0 +1,75 @@
+syntax = "proto3";
+
+package spark.v1;
+
+import "spark/v1/rpc_run_job.proto";
+import "spark/v1/rpc_stream_job_logs.proto";
+import "spark/v1/rpc_ping.proto";
+import "google/api/annotations.proto";
+import "protoc-gen-openapiv2/options/annotations.proto";
+
+option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_swagger) = {
+  info: {
+    title: "User API";
+    version: "v1";
+  };
+};
+
+service SparkService {
+
+  // Run a job
+  rpc RunJob(RunJobRequest) returns (RunJobResponse) {
+    option (google.api.http) = {
+      post: "/v1/spark/run_job"
+      body: "*"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      tags: "Spark"
+      summary: "Run a job"
+      description: "Run a job"
+      responses: {
+        key: "200"
+        value: {
+          description: "Success"
+          schema: {
+            json_schema: {type: STRING}
+          }
+        }
+      }
+    };
+  }
+
+  // Stream job logs
+  rpc StreamJobLogs(StreamJobLogsRequest) returns (stream StreamJobLogsResponse) {
+    option (google.api.http) = {
+      post: "/v1/spark/stream_job_logs"
+      body: "*"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      tags: "Spark"
+      summary: "Stream job logs"
+      description: "Stream job logs"
+      responses: {
+        key: "200"
+        value: {
+          description: "Success"
+          schema: {
+            json_schema: {type: STRING}
+          }
+        }
+      }
+    };
+  }
+
+  // Ping the server
+  rpc Ping (PingRequest) returns (PingResponse){
+    option (google.api.http) = {
+      get: "/v1/ping"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      tags: "Ops"
+      summary: "Ping the server";
+      description: "Ping the server";
+    };
+  }
+}

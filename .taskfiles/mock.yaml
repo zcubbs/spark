@@ -1,0 +1,16 @@
+version: '3'
+
+tasks:
+
+  ############################################################
+  default:
+    desc: Mock Interfaces
+    cmds:
+      - task: grpc
+
+  ############################################################
+  grpc:
+    desc: Mock GRPC
+    dir: cmd/server/api
+    cmds:
+      - echo "not implemented"

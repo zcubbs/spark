@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package user.v1;
+
+message LogoutUserRequest {
+  string session_id = 2;
+}
+
+message LogoutUserResponse {
+  bool success = 1;
+}

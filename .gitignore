@@ -1,0 +1,14 @@
+/.idea/
+*.iml
+.env
+
+/bin/
+/tmp/
+/dist/
+*.db
+
+**/node_modules/
+
+/server/web/dist/
+*.so
+/coverage.out
