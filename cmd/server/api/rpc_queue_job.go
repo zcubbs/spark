@@ -2,19 +2,23 @@ package api
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
 	sparkpb "github.com/zcubbs/spark/gen/proto/go/spark/v1"
 	k8sJobs "github.com/zcubbs/spark/pkg/k8s/jobs"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"math/rand"
 	"regexp"
 )
 
 func (s *Server) QueueJob(_ context.Context, req *sparkpb.QueueJobRequest) (*sparkpb.QueueJobResponse, error) {
 	var id string
 	if req.JobId == "" {
-		id = generateRandomJobId()
+		var err error
+		id, err = generateRandomJobId()
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to generate random job id: %v", err)
+		}
 	} else {
 		if err := validateId(req.JobId); err != nil {
 			return nil, status.Errorf(codes.InvalidArgument, "invalid [id]: %v", err)
@@ -55,14 +59,19 @@ func validateId(id string) error {
 	return nil
 }
 
-// generateRandomJobId generates a random job id
-func generateRandomJobId() string {
-	// implement this function
-	var letterRunes = []rune("abcdefghijklmnopqrstuvwxyz0123456789")
-	b := make([]rune, 15)
-	for i := range b {
-		b[i] = letterRunes[rand.Intn(len(letterRunes))]
+// generateRandomJobId generates a secure and random job ID
+func generateRandomJobId() (string, error) {
+	var charset = "abcdefghijklmnopqrstuvwxyz0123456789"
+	b := make([]byte, 15) // Length of the random part
+
+	if _, err := rand.Read(b); err != nil {
+		return "", err
 	}
 
-	return "spark-job-" + string(b)
+	var result = "spark-job-"
+	for _, byteVal := range b {
+		result += string(charset[byteVal%byte(len(charset))])
+	}
+
+	return result, nil
 }
