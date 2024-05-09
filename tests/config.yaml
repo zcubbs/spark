@@ -1,2 +1,3 @@
 debug: true
 dev_mode: true
+kubeconfig_path: default

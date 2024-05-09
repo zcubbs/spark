@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package spark.v1;
+
+message QueueJobRequest {
+  // job id (optional) if not provided, a new id will be generated
+  string job_id = 1;
+  // image of the job
+  string image = 3;
+  // command of the job
+  repeated string command = 4;
+  // timeout of the job
+  int32 timeout = 5;
+}
+
+message QueueJobResponse {
+  // job id
+  string id = 1;
+  // job name
+  string name = 2;
+  // job namespace
+  string namespace = 3;
+}

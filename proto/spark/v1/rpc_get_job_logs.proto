@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package spark.v1;
+
+message GetJobLogsRequest {
+  string job_id = 1;
+}
+
+message GetJobLogsResponse {
+  string logs = 1;
+}

@@ -22,10 +22,14 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type SparkServiceClient interface {
-	// Run a job
-	RunJob(ctx context.Context, in *RunJobRequest, opts ...grpc.CallOption) (*RunJobResponse, error)
-	// Stream job logs
-	StreamJobLogs(ctx context.Context, in *StreamJobLogsRequest, opts ...grpc.CallOption) (SparkService_StreamJobLogsClient, error)
+	// Queue a job
+	QueueJob(ctx context.Context, in *QueueJobRequest, opts ...grpc.CallOption) (*QueueJobResponse, error)
+	// Get job logs
+	GetJobLogs(ctx context.Context, in *GetJobLogsRequest, opts ...grpc.CallOption) (*GetJobLogsResponse, error)
+	// Get Job Status
+	GetJobStatus(ctx context.Context, in *GetJobStatusRequest, opts ...grpc.CallOption) (*GetJobStatusResponse, error)
+	// Delete a job
+	DeleteJob(ctx context.Context, in *DeleteJobRequest, opts ...grpc.CallOption) (*DeleteJobResponse, error)
 	// Ping the server
 	Ping(ctx context.Context, in *PingRequest, opts ...grpc.CallOption) (*PingResponse, error)
 }
@@ -38,45 +42,40 @@ func NewSparkServiceClient(cc grpc.ClientConnInterface) SparkServiceClient {
 	return &sparkServiceClient{cc}
 }
 
-func (c *sparkServiceClient) RunJob(ctx context.Context, in *RunJobRequest, opts ...grpc.CallOption) (*RunJobResponse, error) {
-	out := new(RunJobResponse)
-	err := c.cc.Invoke(ctx, "/spark.v1.SparkService/RunJob", in, out, opts...)
+func (c *sparkServiceClient) QueueJob(ctx context.Context, in *QueueJobRequest, opts ...grpc.CallOption) (*QueueJobResponse, error) {
+	out := new(QueueJobResponse)
+	err := c.cc.Invoke(ctx, "/spark.v1.SparkService/QueueJob", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *sparkServiceClient) StreamJobLogs(ctx context.Context, in *StreamJobLogsRequest, opts ...grpc.CallOption) (SparkService_StreamJobLogsClient, error) {
-	stream, err := c.cc.NewStream(ctx, &SparkService_ServiceDesc.Streams[0], "/spark.v1.SparkService/StreamJobLogs", opts...)
+func (c *sparkServiceClient) GetJobLogs(ctx context.Context, in *GetJobLogsRequest, opts ...grpc.CallOption) (*GetJobLogsResponse, error) {
+	out := new(GetJobLogsResponse)
+	err := c.cc.Invoke(ctx, "/spark.v1.SparkService/GetJobLogs", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
-	x := &sparkServiceStreamJobLogsClient{stream}
-	if err := x.ClientStream.SendMsg(in); err != nil {
-		return nil, err
-	}
-	if err := x.ClientStream.CloseSend(); err != nil {
-		return nil, err
-	}
-	return x, nil
+	return out, nil
 }
 
-type SparkService_StreamJobLogsClient interface {
-	Recv() (*StreamJobLogsResponse, error)
-	grpc.ClientStream
-}
-
-type sparkServiceStreamJobLogsClient struct {
-	grpc.ClientStream
-}
-
-func (x *sparkServiceStreamJobLogsClient) Recv() (*StreamJobLogsResponse, error) {
-	m := new(StreamJobLogsResponse)
-	if err := x.ClientStream.RecvMsg(m); err != nil {
+func (c *sparkServiceClient) GetJobStatus(ctx context.Context, in *GetJobStatusRequest, opts ...grpc.CallOption) (*GetJobStatusResponse, error) {
+	out := new(GetJobStatusResponse)
+	err := c.cc.Invoke(ctx, "/spark.v1.SparkService/GetJobStatus", in, out, opts...)
+	if err != nil {
 		return nil, err
 	}
-	return m, nil
+	return out, nil
+}
+
+func (c *sparkServiceClient) DeleteJob(ctx context.Context, in *DeleteJobRequest, opts ...grpc.CallOption) (*DeleteJobResponse, error) {
+	out := new(DeleteJobResponse)
+	err := c.cc.Invoke(ctx, "/spark.v1.SparkService/DeleteJob", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *sparkServiceClient) Ping(ctx context.Context, in *PingRequest, opts ...grpc.CallOption) (*PingResponse, error) {
@@ -92,10 +91,14 @@ func (c *sparkServiceClient) Ping(ctx context.Context, in *PingRequest, opts ...
 // All implementations should embed UnimplementedSparkServiceServer
 // for forward compatibility
 type SparkServiceServer interface {
-	// Run a job
-	RunJob(context.Context, *RunJobRequest) (*RunJobResponse, error)
-	// Stream job logs
-	StreamJobLogs(*StreamJobLogsRequest, SparkService_StreamJobLogsServer) error
+	// Queue a job
+	QueueJob(context.Context, *QueueJobRequest) (*QueueJobResponse, error)
+	// Get job logs
+	GetJobLogs(context.Context, *GetJobLogsRequest) (*GetJobLogsResponse, error)
+	// Get Job Status
+	GetJobStatus(context.Context, *GetJobStatusRequest) (*GetJobStatusResponse, error)
+	// Delete a job
+	DeleteJob(context.Context, *DeleteJobRequest) (*DeleteJobResponse, error)
 	// Ping the server
 	Ping(context.Context, *PingRequest) (*PingResponse, error)
 }
@@ -104,11 +107,17 @@ type SparkServiceServer interface {
 type UnimplementedSparkServiceServer struct {
 }
 
-func (UnimplementedSparkServiceServer) RunJob(context.Context, *RunJobRequest) (*RunJobResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method RunJob not implemented")
+func (UnimplementedSparkServiceServer) QueueJob(context.Context, *QueueJobRequest) (*QueueJobResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method QueueJob not implemented")
 }
-func (UnimplementedSparkServiceServer) StreamJobLogs(*StreamJobLogsRequest, SparkService_StreamJobLogsServer) error {
-	return status.Errorf(codes.Unimplemented, "method StreamJobLogs not implemented")
+func (UnimplementedSparkServiceServer) GetJobLogs(context.Context, *GetJobLogsRequest) (*GetJobLogsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetJobLogs not implemented")
+}
+func (UnimplementedSparkServiceServer) GetJobStatus(context.Context, *GetJobStatusRequest) (*GetJobStatusResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetJobStatus not implemented")
+}
+func (UnimplementedSparkServiceServer) DeleteJob(context.Context, *DeleteJobRequest) (*DeleteJobResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeleteJob not implemented")
 }
 func (UnimplementedSparkServiceServer) Ping(context.Context, *PingRequest) (*PingResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Ping not implemented")
@@ -125,43 +134,76 @@ func RegisterSparkServiceServer(s grpc.ServiceRegistrar, srv SparkServiceServer)
 	s.RegisterService(&SparkService_ServiceDesc, srv)
 }
 
-func _SparkService_RunJob_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(RunJobRequest)
+func _SparkService_QueueJob_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QueueJobRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(SparkServiceServer).RunJob(ctx, in)
+		return srv.(SparkServiceServer).QueueJob(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/spark.v1.SparkService/RunJob",
+		FullMethod: "/spark.v1.SparkService/QueueJob",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(SparkServiceServer).RunJob(ctx, req.(*RunJobRequest))
+		return srv.(SparkServiceServer).QueueJob(ctx, req.(*QueueJobRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _SparkService_StreamJobLogs_Handler(srv interface{}, stream grpc.ServerStream) error {
-	m := new(StreamJobLogsRequest)
-	if err := stream.RecvMsg(m); err != nil {
-		return err
+func _SparkService_GetJobLogs_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetJobLogsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
 	}
-	return srv.(SparkServiceServer).StreamJobLogs(m, &sparkServiceStreamJobLogsServer{stream})
+	if interceptor == nil {
+		return srv.(SparkServiceServer).GetJobLogs(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/spark.v1.SparkService/GetJobLogs",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SparkServiceServer).GetJobLogs(ctx, req.(*GetJobLogsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
-type SparkService_StreamJobLogsServer interface {
-	Send(*StreamJobLogsResponse) error
-	grpc.ServerStream
+func _SparkService_GetJobStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetJobStatusRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SparkServiceServer).GetJobStatus(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/spark.v1.SparkService/GetJobStatus",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SparkServiceServer).GetJobStatus(ctx, req.(*GetJobStatusRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
-type sparkServiceStreamJobLogsServer struct {
-	grpc.ServerStream
-}
-
-func (x *sparkServiceStreamJobLogsServer) Send(m *StreamJobLogsResponse) error {
-	return x.ServerStream.SendMsg(m)
+func _SparkService_DeleteJob_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteJobRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SparkServiceServer).DeleteJob(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/spark.v1.SparkService/DeleteJob",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SparkServiceServer).DeleteJob(ctx, req.(*DeleteJobRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _SparkService_Ping_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -190,20 +232,26 @@ var SparkService_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*SparkServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "RunJob",
-			Handler:    _SparkService_RunJob_Handler,
+			MethodName: "QueueJob",
+			Handler:    _SparkService_QueueJob_Handler,
+		},
+		{
+			MethodName: "GetJobLogs",
+			Handler:    _SparkService_GetJobLogs_Handler,
+		},
+		{
+			MethodName: "GetJobStatus",
+			Handler:    _SparkService_GetJobStatus_Handler,
+		},
+		{
+			MethodName: "DeleteJob",
+			Handler:    _SparkService_DeleteJob_Handler,
 		},
 		{
 			MethodName: "Ping",
 			Handler:    _SparkService_Ping_Handler,
 		},
 	},
-	Streams: []grpc.StreamDesc{
-		{
-			StreamName:    "StreamJobLogs",
-			Handler:       _SparkService_StreamJobLogs_Handler,
-			ServerStreams: true,
-		},
-	},
+	Streams:  []grpc.StreamDesc{},
 	Metadata: "spark/v1/spark_service.proto",
 }

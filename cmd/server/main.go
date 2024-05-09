@@ -1,11 +1,13 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"github.com/charmbracelet/log"
 	"github.com/zcubbs/spark/cmd/server/api"
 	"github.com/zcubbs/spark/cmd/server/config"
 	"github.com/zcubbs/spark/internal/utils"
+	k8sJobs "github.com/zcubbs/spark/pkg/k8s/jobs"
 	"github.com/zcubbs/x/pretty"
 	"os"
 )
@@ -55,15 +57,25 @@ func init() {
 }
 
 func main() {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Create a new JobsRunner
+	jobsRunner, err := k8sJobs.New(ctx, cfg.KubeconfigPath, cfg.MaxConcurrentJobs)
+	if err != nil {
+		log.Fatal("failed to create jobs runner", "error", err)
+	}
+	defer jobsRunner.Shutdown()
+
 	// Create a new server
-	server, err := api.NewServer(cfg)
+	server, err := api.NewServer(cfg, jobsRunner)
 	if err != nil {
 		log.Fatal("failed to create server", "error", err)
 	}
 
-	// Start the server
-	go server.StartGrpcServer()
-
 	// Start the HTTP gateway
-	server.StartHttpGateway()
+	go server.StartHttpGateway(ctx)
+
+	// Start the server
+	server.StartGrpcServer()
 }

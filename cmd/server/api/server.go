@@ -13,9 +13,12 @@ import (
 	sparkPb "github.com/zcubbs/spark/gen/proto/go/spark/v1"
 	"github.com/zcubbs/spark/internal/logger"
 	k8sJobs "github.com/zcubbs/spark/pkg/k8s/jobs"
+	"golang.org/x/time/rate"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/reflection"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
 	"io/fs"
 	"mime"
@@ -29,9 +32,11 @@ type Server struct {
 	cfg       *config.Configuration
 	embedOpts []EmbedAssetsOpts
 	k8sRunner *k8sJobs.Runner
+
+	limiter *rate.Limiter
 }
 
-func NewServer(cfg *config.Configuration) (*Server, error) {
+func NewServer(cfg *config.Configuration, jobRunner *k8sJobs.Runner) (*Server, error) {
 	var embeds []EmbedAssetsOpts
 	swaggerEmbed := EmbedAssetsOpts{
 		Dir:    openapi.OpenApiFs,
@@ -40,23 +45,17 @@ func NewServer(cfg *config.Configuration) (*Server, error) {
 	}
 	embeds = append(embeds, swaggerEmbed)
 
-	k8sRunner, err := k8sJobs.New(cfg.KubeconfigPath)
-	if err != nil {
-		return nil, fmt.Errorf("cannot create k8s client: %w", err)
-	}
-
 	s := &Server{
 		cfg:       cfg,
 		embedOpts: embeds,
-		k8sRunner: k8sRunner,
+		k8sRunner: jobRunner,
+		limiter:   rate.NewLimiter(rate.Limit(cfg.RateLimitRequestsPerSecond), cfg.RateLimitBurst),
 	}
 
 	return s, nil
 }
 
 func (s *Server) StartGrpcServer() {
-	grpcLogger := grpc.UnaryInterceptor(logger.GrpcLogger)
-
 	var tlsOpt grpc.ServerOption
 	if s.cfg.GrpcServer.Tls.Enabled {
 		var err error
@@ -65,11 +64,13 @@ func (s *Server) StartGrpcServer() {
 			log.Fatal("cannot create new server tls options", "error", err)
 		}
 	} else {
-		log.Warn("🔴 grpc server is running without TLS")
 		tlsOpt = grpc.EmptyServerOption{}
 	}
 
-	grpcServer := grpc.NewServer(grpcLogger, tlsOpt)
+	// Logging and rate limiting interceptors
+	unifiedInterceptors := grpc.ChainUnaryInterceptor(logger.GrpcLogger, s.unaryRateLimitInterceptor)
+
+	grpcServer := grpc.NewServer(unifiedInterceptors, tlsOpt)
 	sparkPb.RegisterSparkServiceServer(grpcServer, s)
 
 	if s.cfg.GrpcServer.EnableReflection {
@@ -87,18 +88,13 @@ func (s *Server) StartGrpcServer() {
 	}
 }
 
-func (s *Server) StartHttpGateway() {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
+func (s *Server) StartHttpGateway(ctx context.Context) {
+	mux := http.NewServeMux()
 	grpcMux := newGrpcRuntimeServerMux()
-
 	err := sparkPb.RegisterSparkServiceHandlerServer(ctx, grpcMux, s)
 	if err != nil {
 		log.Fatal("cannot register handler server", "error", err)
 	}
-
-	mux := http.NewServeMux()
 
 	// add embedded assets handler
 	err = mime.AddExtensionType(".svg", "image/svg+xml")
@@ -111,7 +107,12 @@ func (s *Server) StartHttpGateway() {
 
 	// add grpc handler
 	mux.Handle("/", grpcMux)
-	handler := logger.HttpLogger(mux)
+
+	// add rate limit middleware
+	rateLimitMux := rateLimitMiddleware(s.limiter, mux)
+
+	// add logger middleware
+	handler := logger.HttpLogger(rateLimitMux)
 
 	// Cors
 	origins := handlers.AllowedOrigins([]string{"*"})
@@ -172,4 +173,21 @@ func newFileServerHandler(opts EmbedAssetsOpts) http.Handler {
 	dir := http.FileServer(http.FS(sub))
 
 	return http.StripPrefix(opts.Path, dir)
+}
+
+func (s *Server) unaryRateLimitInterceptor(ctx context.Context, req interface{}, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+	if !s.limiter.Allow() {
+		return nil, status.Errorf(codes.ResourceExhausted, "request limit exceeded")
+	}
+	return handler(ctx, req)
+}
+
+func rateLimitMiddleware(limiter *rate.Limiter, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !limiter.Allow() {
+			http.Error(w, "Rate limit exceeded", http.StatusTooManyRequests)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }

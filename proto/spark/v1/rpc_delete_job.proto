@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package spark.v1;
+
+message DeleteJobRequest {
+  // id of the job
+  string job_id = 1;
+}
+
+message DeleteJobResponse {}

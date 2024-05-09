@@ -2,31 +2,34 @@ syntax = "proto3";
 
 package spark.v1;
 
-import "spark/v1/rpc_run_job.proto";
-import "spark/v1/rpc_stream_job_logs.proto";
+import "spark/v1/rpc_queue_job.proto";
+import "spark/v1/rpc_get_job_logs.proto";
+import "spark/v1/rpc_get_job_status.proto";
+import "spark/v1/rpc_delete_job.proto";
 import "spark/v1/rpc_ping.proto";
 import "google/api/annotations.proto";
 import "protoc-gen-openapiv2/options/annotations.proto";
 
 option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_swagger) = {
   info: {
-    title: "User API";
+    title: "Spark API";
     version: "v1";
   };
 };
 
+// buf:lint:ignore RPC_NO_DELETE
 service SparkService {
 
-  // Run a job
-  rpc RunJob(RunJobRequest) returns (RunJobResponse) {
+  // Queue a job
+  rpc QueueJob(QueueJobRequest) returns (QueueJobResponse) {
     option (google.api.http) = {
-      post: "/v1/spark/run_job"
+      post: "/v1/queue_job"
       body: "*"
     };
     option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
       tags: "Spark"
-      summary: "Run a job"
-      description: "Run a job"
+      summary: "Queue a job"
+      description: "Queue a job"
       responses: {
         key: "200"
         value: {
@@ -39,16 +42,60 @@ service SparkService {
     };
   }
 
-  // Stream job logs
-  rpc StreamJobLogs(StreamJobLogsRequest) returns (stream StreamJobLogsResponse) {
+  // Get job logs
+  rpc GetJobLogs(GetJobLogsRequest) returns (GetJobLogsResponse) {
     option (google.api.http) = {
-      post: "/v1/spark/stream_job_logs"
+      post: "/v1/get_job_logs"
       body: "*"
     };
     option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
       tags: "Spark"
       summary: "Stream job logs"
       description: "Stream job logs"
+      responses: {
+        key: "200"
+        value: {
+          description: "Success"
+          schema: {
+            json_schema: {type: STRING}
+          }
+        }
+      }
+    };
+  }
+
+  // Get Job Status
+  rpc GetJobStatus(GetJobStatusRequest) returns (GetJobStatusResponse) {
+    option (google.api.http) = {
+      post: "/v1/get_job_status"
+      body: "*"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      tags: "Spark"
+      summary: "Get job status"
+      description: "Get job status"
+      responses: {
+        key: "200"
+        value: {
+          description: "Success"
+          schema: {
+            json_schema: {type: STRING}
+          }
+        }
+      }
+    };
+  }
+
+  // Delete a job
+  rpc DeleteJob(DeleteJobRequest) returns (DeleteJobResponse) {
+    option (google.api.http) = {
+      post: "/v1/delete_job"
+      body: "*"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      tags: "Spark"
+      summary: "Delete a job"
+      description: "Delete a job"
       responses: {
         key: "200"
         value: {

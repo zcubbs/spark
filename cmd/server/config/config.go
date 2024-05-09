@@ -9,7 +9,18 @@ type Configuration struct {
 	GrpcServer        GrpcServerConfig `mapstructure:"grpc_server"`
 	Auth              AuthConfig       `mapstructure:"auth"`
 	InitAdminPassword string           `mapstructure:"init_admin_password"`
-	KubeconfigPath    string           `mapstructure:"kubeconfig_path"`
+	// KubeconfigPath is the path to the kubeconfig file.
+	// If empty, the in-cluster config will be used.
+	// Default value: ""
+	// If value is "default", the default kubeconfig file will be used.
+	// otherwise, the value is the path to the kubeconfig file.
+	KubeconfigPath string `mapstructure:"kubeconfig_path"`
+	// MaxConcurrentJobs is the maximum number of concurrent jobs that can be run at the same time.
+	MaxConcurrentJobs int `mapstructure:"max_concurrent_jobs"`
+	// RateLimitRequestsPerSecond is the maximum number of requests per second allowed.
+	RateLimitRequestsPerSecond int `mapstructure:"rate_limit_requests_per_second"`
+	// RateLimitBurst is the maximum number of requests that can be burst(ed).
+	RateLimitBurst int `mapstructure:"rate_limit_burst"`
 
 	// Version is the version of the application.
 	Version string `json:"version"`

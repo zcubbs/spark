@@ -1,0 +1,25 @@
+POST http://localhost:8000/v1/queue_job
+Content-Type: application/json
+
+{
+  "image": "busybox",
+  "command": ["sh", "-c", "echo Hello World"]
+}
+
+###
+
+POST http://localhost:8000/v1/delete_job
+Content-Type: application/json
+
+{
+  "name": "spark-test-job"
+}
+
+###
+
+POST http://localhost:8000/v1/get_job_logs
+Content-Type: application/json
+
+{
+  "jobId": "spark-test-job"
+}

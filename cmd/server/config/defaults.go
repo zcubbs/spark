@@ -23,6 +23,10 @@ var (
 		"auth.token_symmetric_key":        "12345678901234567890123456789012",
 		"auth.access_token_duration":      "30s",
 		"auth.refresh_token_duration":     "15m",
+		"kubeconfig_path":                 "",
+		"max_concurrent_jobs":             5,
+		"rate_limit_requests_per_second":  1,
+		"rate_limit_burst":                5,
 	}
 
 	EnvKeys = map[string]string{
@@ -42,5 +46,9 @@ var (
 		"auth.token_symmetric_key":        "AUTH_TOKEN_SYMMETRIC_KEY",
 		"auth.access_token_duration":      "AUTH_ACCESS_TOKEN_DURATION",
 		"auth.refresh_token_duration":     "AUTH_REFRESH_TOKEN_DURATION",
+		"kubeconfig_path":                 "KUBECONFIG_PATH",
+		"max_concurrent_jobs":             "MAX_CONCURRENT_JOBS",
+		"rate_limit_requests_per_second":  "RATE_LIMIT_REQUESTS_PER_SECOND",
+		"rate_limit_burst":                "RATE_LIMIT_BURST",
 	}
 )
