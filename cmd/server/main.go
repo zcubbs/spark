@@ -61,7 +61,7 @@ func main() {
 	defer cancel()
 
 	// Create a new JobsRunner
-	jobsRunner, err := k8sJobs.New(ctx, cfg.KubeconfigPath, cfg.MaxConcurrentJobs)
+	jobsRunner, err := k8sJobs.New(ctx, cfg.KubeconfigPath, cfg.MaxConcurrentJobs, cfg.QueueBufferSize)
 	if err != nil {
 		log.Fatal("failed to create jobs runner", "error", err)
 	}

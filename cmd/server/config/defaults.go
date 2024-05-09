@@ -25,6 +25,7 @@ var (
 		"auth.refresh_token_duration":     "15m",
 		"kubeconfig_path":                 "",
 		"max_concurrent_jobs":             5,
+		"queue_buffer_size":               100,
 		"rate_limit_requests_per_second":  1,
 		"rate_limit_burst":                5,
 	}
@@ -48,6 +49,7 @@ var (
 		"auth.refresh_token_duration":     "AUTH_REFRESH_TOKEN_DURATION",
 		"kubeconfig_path":                 "KUBECONFIG_PATH",
 		"max_concurrent_jobs":             "MAX_CONCURRENT_JOBS",
+		"queue_buffer_size":               "QUEUE_BUFFER_SIZE",
 		"rate_limit_requests_per_second":  "RATE_LIMIT_REQUESTS_PER_SECOND",
 		"rate_limit_burst":                "RATE_LIMIT_BURST",
 	}

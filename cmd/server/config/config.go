@@ -17,6 +17,8 @@ type Configuration struct {
 	KubeconfigPath string `mapstructure:"kubeconfig_path"`
 	// MaxConcurrentJobs is the maximum number of concurrent jobs that can be run at the same time.
 	MaxConcurrentJobs int `mapstructure:"max_concurrent_jobs"`
+	// QueueBufferSize is the size of the job queue buffer.
+	QueueBufferSize int `mapstructure:"queue_buffer_size"`
 	// RateLimitRequestsPerSecond is the maximum number of requests per second allowed.
 	RateLimitRequestsPerSecond int `mapstructure:"rate_limit_requests_per_second"`
 	// RateLimitBurst is the maximum number of requests that can be burst(ed).

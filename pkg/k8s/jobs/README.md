@@ -1,63 +1,86 @@
-# k8sJobs Package
+# `k8sJobs` Go Package
 
-The `k8sJobs` package provides a simple and efficient way to manage and execute Kubernetes jobs in Go. It uses channels to queue tasks and control their execution, allowing for concurrent job processing within specified limits.
+The `k8sJobs` package is a Go library for managing Kubernetes jobs. It provides functionalities for creating, monitoring, and deleting jobs, managing concurrency, and maintaining a record of job statuses and logs in a local BuntDB database.
 
-## Overview
+## Features
 
-This package is designed to help developers integrate Kubernetes job management into their applications with minimal setup. It handles the creation, execution, and monitoring of Kubernetes jobs based on tasks that are queued through a channel.
+- **Dynamic Job Management**: Create and monitor Kubernetes jobs dynamically within your application.
+- **Concurrency Control**: Manage multiple jobs concurrently with a configurable limit.
+- **Task Queuing**: Queue tasks with a channel-based mechanism.
+- **Local Persistence**: Utilize BuntDB to store job statuses and logs.
+- **Timeout Handling**: Automatically handle job execution with configurable timeouts.
+- **Error Handling**: Robust error handling throughout the job lifecycle.
 
-## Key Components
+## Structure
 
-- **Task:** Represents a Kubernetes job with a specific command, image, and identifiers.
-- **Runner:** Manages tasks, orchestrates the creation and monitoring of Kubernetes jobs.
+### Runner Struct
 
-## Queuing System
+Orchestrates job tasks and interacts with the Kubernetes API.
 
-The queuing system in `k8sJobs` is implemented using Go channels, which serve as a robust mechanism for managing concurrency and task execution order. This approach ensures that tasks are executed in a controlled manner, respecting the `maxConcurrentJobs` limit set during initialization.
+- **Fields**:
+    - `cs`: Kubernetes ClientSet to interact with Kubernetes API.
+    - `maxConcurrentJobs`: Maximum number of jobs that can run concurrently.
+    - `taskChan`: Channel for queuing tasks.
+    - `quit`: Channel to signal the shutdown of task processing.
+    - `namespace`: Namespace in Kubernetes where jobs are deployed.
+    - `db`: BuntDB instance for local data storage.
 
-### Task Channel
+### Task Struct
 
-Tasks are submitted to a `taskChan`, a buffered channel where tasks wait until they can be processed. The size of the buffer defines the maximum number of tasks that can be pending execution, which is determined by the `maxConcurrentJobs` parameter.
+Defines the structure of a job task.
 
-### Runner Process
+- **Fields**:
+    - `ID`: Unique identifier of the task.
+    - `Command`: Docker container command.
+    - `Image`: Docker image used for the job.
+    - `Timeout`: Execution timeout in seconds.
 
-The `Runner` continuously listens for new tasks on the `taskChan`. Each task is processed by launching a separate goroutine, ensuring that job creation and monitoring are handled concurrently but within the limits of `maxConcurrentJobs`. This prevents the system from being overwhelmed by too many simultaneous Kubernetes API calls.
+## Core Functions
 
-### Graceful Shutdown
+### Initialization
 
-The `Runner` also includes a `quit` channel. This channel is used to signal the `Runner` to stop processing new tasks and gracefully shut down, ensuring that all active jobs are completed before the application exits.
+- **`New`**: Initializes a new Runner with specified configuration settings.
 
-## Usage
+### Task Management
 
-Here is a basic example of how to use the `k8sJobs` package:
+- **`AddTask`**: Enqueues a new task for processing.
+- **`processTasks`**: Processes tasks from the queue continuously.
+- **`handleTask`**: Handles the execution and monitoring of individual tasks.
+
+### Job Monitoring and Management
+
+- **`createAndMonitorJob`**: Sets up and monitors a Kubernetes job.
+- **`waitForJobCompletion`**: Waits and checks for the completion of a job.
+- **`GetLogs`**: Fetches logs from Kubernetes pods related to the job.
+- **`delete`**: Deletes a job from Kubernetes.
+
+### Utility Functions
+
+- **`updateTaskStatus`**: Updates the status of a job in the database.
+- **`handleTimeout`**: Handles operations when a job times out.
+
+## Usage Example
 
 ```go
-package main
-
-import (
-    "context"
-    "github.com/zcubbs/spark/pkg/k8s/jobs"
-)
-
-func main() {
-    ctx := context.Background()
-    kubeconfig := "/path/to/kubeconfig"
-
-    // Initialize the Runner with a limit of 5 concurrent jobs
-    runner, err := k8sJobs.New(ctx, kubeconfig, 5)
-    if err != nil {
-        panic(err)
-    }
-
-    // Add tasks to the queue
-    runner.AddTask(k8sJobs.Task{ID: "task1", Command: []string{"echo", "Hello World"}, Name: "echo-task", Image: "busybox"})
-    runner.AddTask(k8sJobs.Task{ID: "task2", Command: []string{"sleep", "10"}, Name: "sleep-task", Image: "busybox"})
-
-    // Implementing a signal handling or a similar mechanism is advised to call runner.Shutdown() when the application is stopping.
+// You can replace "default" with the desired path 
+// or pass an empty string for the current namespace if in-cluster.
+runner, err := k8sJobs.New(context.Background(), "default", 5, 100)
+if err != nil {
+    log.Fatalf("Failed to start runner: %v", err)
 }
+
+task := k8sJobs.Task{
+    ID:      "unique-job-id",
+    Command: []string{"echo", "Hello World"},
+    Image:   "busybox",
+    Timeout: 30,
+}
+
+if err := runner.AddTask(task); err != nil {
+    log.Errorf("Failed to add task: %v", err)
+}
+
+// Perform additional operations...
+
+runner.Shutdown()
 ```
-
-## Conclusion
-
-The k8sJobs package simplifies the management of Kubernetes jobs, leveraging Go’s concurrency features to provide a robust, easy-to-use interface for running tasks within a Kubernetes cluster. It ensures efficient and safe execution of jobs, making it an ideal tool for applications requiring automated task management in Kubernetes environments.
-

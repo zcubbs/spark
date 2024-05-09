@@ -1,14 +1,9 @@
 package k8sJobs
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"github.com/charmbracelet/log"
-	batchv1 "k8s.io/api/batch/v1"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/watch"
+	"github.com/tidwall/buntdb"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -18,12 +13,6 @@ import (
 	"sync"
 )
 
-type Task struct {
-	ID      string
-	Command []string
-	Image   string
-}
-
 // Runner manages the lifecycle of Kubernetes jobs.
 type Runner struct {
 	cs                *kubernetes.Clientset
@@ -32,9 +21,11 @@ type Runner struct {
 	taskChan          chan Task
 	quit              chan struct{}
 	namespace         string
+
+	db *buntdb.DB
 }
 
-func New(ctx context.Context, kubeconfig string, maxConcurrentJobs int) (*Runner, error) {
+func New(ctx context.Context, kubeconfig string, maxConcurrentJobs, queueBufferSize int) (*Runner, error) {
 	kConfig, err := loadK8sConfig(kubeconfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load k8s config: %v", err)
@@ -47,12 +38,18 @@ func New(ctx context.Context, kubeconfig string, maxConcurrentJobs int) (*Runner
 
 	ns := determineNamespace()
 
+	db, err := buntdb.Open("spark.db") // Open the data store
+	if err != nil {
+		return nil, fmt.Errorf("failed to open database: %v", err)
+	}
+
 	r := &Runner{
 		cs:                cs,
 		maxConcurrentJobs: maxConcurrentJobs,
-		taskChan:          make(chan Task, 100), // Buffer can be adjusted based on expected task load
+		taskChan:          make(chan Task, queueBufferSize),
 		quit:              make(chan struct{}),
 		namespace:         ns,
+		db:                db,
 	}
 
 	go r.processTasks(ctx)
@@ -60,165 +57,10 @@ func New(ctx context.Context, kubeconfig string, maxConcurrentJobs int) (*Runner
 	return r, nil
 }
 
-func (r *Runner) processTasks(ctx context.Context) {
-	for {
-		select {
-		case task := <-r.taskChan:
-			r.wg.Add(1)
-			go func(t Task) {
-				defer r.wg.Done()
-				// Process the task
-				_, err := r.createAndMonitorJob(ctx, r.namespace, t)
-				if err != nil {
-					log.Error("Failed to create and monitor job", "error", err)
-				}
-			}(task)
-		case <-r.quit:
-			return
-		}
-	}
-}
-
-// AddTask adds a task to the runner.
-func (r *Runner) AddTask(t Task) error {
-	select {
-	case r.taskChan <- t:
-		return nil // Successfully added the task
-	default:
-		// Handle the case when taskChan is full
-		return fmt.Errorf("task queue is full")
-	}
-}
-
 // Shutdown stops the runner.
 func (r *Runner) Shutdown() {
 	close(r.quit)
 	r.wg.Wait()
-}
-
-func (r *Runner) createAndMonitorJob(ctx context.Context, namespace string, task Task) (*batchv1.Job, error) {
-	job := &batchv1.Job{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      task.ID,
-			Namespace: namespace,
-		},
-		Spec: batchv1.JobSpec{
-			Template: corev1.PodTemplateSpec{
-				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{
-						{
-							Name:    task.ID,
-							Image:   task.Image,
-							Command: task.Command,
-						},
-					},
-					RestartPolicy: corev1.RestartPolicyOnFailure,
-				},
-			},
-		},
-	}
-
-	// Create the Kubernetes job
-	job, err := r.cs.BatchV1().Jobs(namespace).Create(ctx, job, metav1.CreateOptions{})
-	if err != nil {
-		log.Error("Failed to create job", "error", err)
-		return nil, err
-	}
-
-	// Monitor the job status until completion or failure
-	err = r.waitForJobCompletion(ctx, job)
-	if err != nil {
-		log.Error("Failed to monitor job", "error", err)
-		return nil, fmt.Errorf("job monitoring failed: %v", err)
-	}
-
-	return job, nil
-}
-
-func (r *Runner) waitForJobCompletion(ctx context.Context, job *batchv1.Job) error {
-	watcher, err := r.cs.BatchV1().Jobs(job.Namespace).Watch(ctx, metav1.ListOptions{
-		FieldSelector: fmt.Sprintf("metadata.name=%s", job.Name),
-	})
-	if err != nil {
-		return err
-	}
-	defer watcher.Stop()
-
-	for event := range watcher.ResultChan() {
-		switch event.Type {
-		case watch.Added, watch.Modified:
-			job, ok := event.Object.(*batchv1.Job)
-			if !ok {
-				return fmt.Errorf("unexpected type")
-			}
-
-			for _, condition := range job.Status.Conditions {
-				if condition.Type == batchv1.JobComplete && condition.Status == corev1.ConditionTrue {
-					return nil
-				} else if condition.Type == batchv1.JobFailed && condition.Status == corev1.ConditionTrue {
-					return fmt.Errorf("job failed")
-				}
-			}
-		case watch.Deleted:
-			return fmt.Errorf("job deleted")
-		}
-	}
-
-	return nil
-}
-
-// Kill stops a running pod in a Kubernetes cluster.
-func (r *Runner) Kill() error {
-	// Implement me
-	return nil
-}
-
-// Delete deletes a pod in a Kubernetes cluster.
-func (r *Runner) Delete(ctx context.Context, jobId string) error {
-	deletePolicy := metav1.DeletePropagationForeground
-	err := r.cs.BatchV1().Jobs(r.namespace).Delete(ctx, jobId, metav1.DeleteOptions{
-		PropagationPolicy: &deletePolicy,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to delete job: %v", err)
-	}
-
-	return nil
-}
-
-// GetLogs gets the logs of a running pod in a Kubernetes cluster.
-func (r *Runner) GetLogs(ctx context.Context, jobId string) (string, error) {
-	pods, err := r.cs.CoreV1().Pods(r.namespace).List(ctx, metav1.ListOptions{
-		LabelSelector: fmt.Sprintf(jobId),
-	})
-	if err != nil {
-		return "", fmt.Errorf("error fetching pods: %v", err)
-	}
-
-	var logsAggregate string
-	for _, pod := range pods.Items {
-		logOpts := &corev1.PodLogOptions{}
-		req := r.cs.CoreV1().Pods(r.namespace).GetLogs(pod.Name, logOpts)
-		logs, err := req.Stream(ctx)
-		if err != nil {
-			continue // Log error or handle it as needed
-		}
-		defer logs.Close()
-		buf := new(bytes.Buffer)
-		_, err = buf.ReadFrom(logs)
-		if err != nil {
-			return "", err
-		}
-		logsAggregate += buf.String() + "\n" // Collect logs for all pods
-	}
-
-	return logsAggregate, nil
-}
-
-// WatchStatus watches the status of a running pod in a Kubernetes cluster.
-func (r *Runner) WatchStatus() error {
-	// Implement me
-	return nil
 }
 
 // loadK8sConfig loads the Kubernetes client configuration.
