@@ -76,8 +76,6 @@ func loadK8sConfig(kubeconfig string) (*rest.Config, error) {
 			return nil, fmt.Errorf("failed to load in-cluster config: %v", err)
 		}
 	} else {
-		fmt.Println("Using kubeconfig file")
-
 		if kubeconfig == "default" {
 			homeDir, err := os.UserHomeDir()
 			if err != nil {

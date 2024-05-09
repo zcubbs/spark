@@ -53,14 +53,21 @@ func (r *Runner) processTasks(ctx context.Context) {
 func (r *Runner) handleTask(ctx context.Context, t Task) {
 	defer r.wg.Done()
 
+	log.Debug("Processing task", "jobId", t.ID, "image", t.Image, "command", t.Command)
+
 	// Set initial task status to RUNNING
 	if !(r.updateTaskStatus(t.ID, t.Image, t.Command, "RUNNING", "")) {
 		// If the task status update fails, return
 		return
 	}
 
+	defaultTimeout := 60
+	if t.Timeout > 0 {
+		defaultTimeout = t.Timeout
+	}
+
 	// Process the task with a timeout
-	jobCtx, cancel := context.WithTimeout(ctx, time.Duration(t.Timeout)*time.Second)
+	jobCtx, cancel := context.WithTimeout(ctx, time.Duration(defaultTimeout)*time.Second)
 	defer cancel()
 
 	_, err := r.createAndMonitorJob(jobCtx, r.namespace, t)
@@ -76,11 +83,13 @@ func (r *Runner) handleTask(ctx context.Context, t Task) {
 	}
 
 	// Retrieve logs and update task status to SUCCEEDED or FAILED based on log retrieval status
-	logs, err := r.GetLogs(ctx, t.ID)
+	log.Debug("Retrieving logs", "jobId", t.ID)
+	logs, err := r.getLogs(ctx, t.ID)
 	finalStatus := "SUCCEEDED"
 	if err != nil {
 		finalStatus = "FAILED"
 		logs = fmt.Sprintf("Failed to get logs: %v", err)
+		log.Error("Failed to get logs", "error", err, "jobId", t.ID)
 	}
 
 	r.updateTaskStatus(t.ID, t.Image, t.Command, finalStatus, logs)

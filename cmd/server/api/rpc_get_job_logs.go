@@ -7,9 +7,9 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func (s *Server) GetJobLogs(ctx context.Context, req *sparkpb.GetJobLogsRequest) (*sparkpb.GetJobLogsResponse, error) {
+func (s *Server) GetJobLogs(_ context.Context, req *sparkpb.GetJobLogsRequest) (*sparkpb.GetJobLogsResponse, error) {
 	// Get the job logs
-	logs, err := s.k8sRunner.GetLogs(ctx, req.JobId)
+	logs, err := s.k8sRunner.GetLogsForTaskFromDB(req.JobId)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to get logs: %v", err)
 	}

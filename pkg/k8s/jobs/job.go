@@ -34,6 +34,7 @@ func (r *Runner) createAndMonitorJob(ctx context.Context, namespace string, task
 		},
 	}
 
+	log.Debug("Creating job", "jobId", task.ID, "image", task.Image, "command", task.Command)
 	// Create the Kubernetes job
 	job, err := r.cs.BatchV1().Jobs(namespace).Create(ctx, job, metav1.CreateOptions{})
 	if err != nil {
@@ -42,6 +43,7 @@ func (r *Runner) createAndMonitorJob(ctx context.Context, namespace string, task
 	}
 
 	// Monitor the job status until completion or failure
+	log.Debug("Waiting for job to complete...", "jobId", task.ID, "image", task.Image, "command", task.Command)
 	err = r.waitForJobCompletion(ctx, job)
 	if err != nil {
 		log.Error("Failed to monitor job", "error", err)
@@ -106,6 +108,7 @@ func (r *Runner) evaluateJobStatus(event watch.Event) error {
 // Delete deletes a pod in a Kubernetes cluster.
 func (r *Runner) delete(ctx context.Context, jobId string) {
 	deletePolicy := metav1.DeletePropagationForeground
+	log.Debug("Deleting job", "jobId", jobId)
 	err := r.cs.BatchV1().Jobs(r.namespace).Delete(ctx, jobId, metav1.DeleteOptions{
 		PropagationPolicy: &deletePolicy,
 	})
@@ -115,9 +118,9 @@ func (r *Runner) delete(ctx context.Context, jobId string) {
 }
 
 // GetLogs gets the logs of a running pod in a Kubernetes cluster.
-func (r *Runner) GetLogs(ctx context.Context, jobId string) (string, error) {
+func (r *Runner) getLogs(ctx context.Context, jobId string) (string, error) {
 	pods, err := r.cs.CoreV1().Pods(r.namespace).List(ctx, metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("job-id=%s", jobId),
+		LabelSelector: fmt.Sprintf("job-name=%s", jobId),
 	})
 	if err != nil {
 		return "", fmt.Errorf("error fetching pods: %v", err)
@@ -141,7 +144,10 @@ func (r *Runner) GetLogs(ctx context.Context, jobId string) (string, error) {
 			continue
 		}
 
-		logsAggregate += logsData + "\n" // Collect logs for all pods
+		if logsAggregate != "" && logsData != "" {
+			logsAggregate += "\n"
+		}
+		logsAggregate += logsData
 	}
 
 	return logsAggregate, nil
