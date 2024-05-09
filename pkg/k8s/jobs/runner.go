@@ -25,22 +25,22 @@ type Runner struct {
 	db *buntdb.DB
 }
 
-func New(ctx context.Context, kubeconfig string, maxConcurrentJobs, queueBufferSize int) (*Runner, error) {
+func New(ctx context.Context, kubeconfig string, maxConcurrentJobs, queueBufferSize int) (*Runner, *buntdb.DB, error) {
 	kConfig, err := loadK8sConfig(kubeconfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load k8s config: %v", err)
+		return nil, nil, fmt.Errorf("failed to load k8s config: %v", err)
 	}
 
 	cs, err := kubernetes.NewForConfig(kConfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create k8s clientset: %v", err)
+		return nil, nil, fmt.Errorf("failed to create k8s clientset: %v", err)
 	}
 
 	ns := determineNamespace()
 
 	db, err := buntdb.Open("spark.db") // Open the data store
 	if err != nil {
-		return nil, fmt.Errorf("failed to open database: %v", err)
+		return nil, nil, fmt.Errorf("failed to open database: %v", err)
 	}
 
 	r := &Runner{
@@ -54,7 +54,7 @@ func New(ctx context.Context, kubeconfig string, maxConcurrentJobs, queueBufferS
 
 	go r.processTasks(ctx)
 
-	return r, nil
+	return r, db, nil
 }
 
 // Shutdown stops the runner.
