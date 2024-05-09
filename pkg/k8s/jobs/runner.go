@@ -109,8 +109,6 @@ func determineNamespace() string {
 	return string(namespace)
 }
 
-func int32Ptr(i int32) *int32 { return &i }
-
 // GetNamespace returns the namespace of the runner.
 func (r *Runner) GetNamespace() string {
 	return r.namespace
