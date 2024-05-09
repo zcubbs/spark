@@ -5,7 +5,6 @@ package spark.v1;
 import "spark/v1/rpc_queue_job.proto";
 import "spark/v1/rpc_get_job_logs.proto";
 import "spark/v1/rpc_get_job_status.proto";
-import "spark/v1/rpc_delete_job.proto";
 import "spark/v1/rpc_ping.proto";
 import "google/api/annotations.proto";
 import "protoc-gen-openapiv2/options/annotations.proto";
@@ -74,28 +73,6 @@ service SparkService {
       tags: "Spark"
       summary: "Get job status"
       description: "Get job status"
-      responses: {
-        key: "200"
-        value: {
-          description: "Success"
-          schema: {
-            json_schema: {type: STRING}
-          }
-        }
-      }
-    };
-  }
-
-  // Delete a job
-  rpc DeleteJob(DeleteJobRequest) returns (DeleteJobResponse) {
-    option (google.api.http) = {
-      post: "/v1/delete_job"
-      body: "*"
-    };
-    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
-      tags: "Spark"
-      summary: "Delete a job"
-      description: "Delete a job"
       responses: {
         key: "200"
         value: {

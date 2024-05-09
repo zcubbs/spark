@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"github.com/charmbracelet/log"
-	"github.com/tidwall/buntdb"
 	"github.com/zcubbs/spark/cmd/server/api"
 	"github.com/zcubbs/spark/cmd/server/config"
 	"github.com/zcubbs/spark/internal/utils"
@@ -62,18 +61,16 @@ func main() {
 	defer cancel()
 
 	// Create a new JobsRunner
-	jobsRunner, db, err := k8sJobs.New(ctx, cfg.KubeconfigPath, cfg.MaxConcurrentJobs, cfg.QueueBufferSize)
+	jobsRunner, err := k8sJobs.New(ctx, cfg.KubeconfigPath, cfg.MaxConcurrentJobs, cfg.QueueBufferSize)
 	if err != nil {
 		log.Fatal("failed to create jobs runner", "error", err)
 	}
-	defer func(db *buntdb.DB) {
-		err := db.Close()
+	defer func(jobsRunner *k8sJobs.Runner) {
+		err := jobsRunner.Shutdown()
 		if err != nil {
-			log.Error("failed to close database", "error", err)
+			log.Error("failed to shutdown jobs runner", "error", err)
 		}
-	}(db)
-
-	defer jobsRunner.Shutdown()
+	}(jobsRunner)
 
 	// Create a new server
 	server, err := api.NewServer(cfg, jobsRunner)

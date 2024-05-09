@@ -16,41 +16,6 @@
     "application/json"
   ],
   "paths": {
-    "/v1/delete_job": {
-      "post": {
-        "summary": "Delete a job",
-        "description": "Delete a job",
-        "operationId": "SparkService_DeleteJob",
-        "responses": {
-          "200": {
-            "description": "Success",
-            "schema": {
-              "type": "string",
-              "format": "string"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/v1DeleteJobRequest"
-            }
-          }
-        ],
-        "tags": [
-          "Spark"
-        ]
-      }
-    },
     "/v1/get_job_logs": {
       "post": {
         "summary": "Stream job logs",
@@ -209,18 +174,6 @@
           }
         }
       }
-    },
-    "v1DeleteJobRequest": {
-      "type": "object",
-      "properties": {
-        "jobId": {
-          "type": "string",
-          "title": "id of the job"
-        }
-      }
-    },
-    "v1DeleteJobResponse": {
-      "type": "object"
     },
     "v1GetJobLogsRequest": {
       "type": "object",

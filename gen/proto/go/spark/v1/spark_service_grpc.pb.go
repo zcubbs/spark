@@ -28,8 +28,6 @@ type SparkServiceClient interface {
 	GetJobLogs(ctx context.Context, in *GetJobLogsRequest, opts ...grpc.CallOption) (*GetJobLogsResponse, error)
 	// Get Job Status
 	GetJobStatus(ctx context.Context, in *GetJobStatusRequest, opts ...grpc.CallOption) (*GetJobStatusResponse, error)
-	// Delete a job
-	DeleteJob(ctx context.Context, in *DeleteJobRequest, opts ...grpc.CallOption) (*DeleteJobResponse, error)
 	// Ping the server
 	Ping(ctx context.Context, in *PingRequest, opts ...grpc.CallOption) (*PingResponse, error)
 }
@@ -69,15 +67,6 @@ func (c *sparkServiceClient) GetJobStatus(ctx context.Context, in *GetJobStatusR
 	return out, nil
 }
 
-func (c *sparkServiceClient) DeleteJob(ctx context.Context, in *DeleteJobRequest, opts ...grpc.CallOption) (*DeleteJobResponse, error) {
-	out := new(DeleteJobResponse)
-	err := c.cc.Invoke(ctx, "/spark.v1.SparkService/DeleteJob", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *sparkServiceClient) Ping(ctx context.Context, in *PingRequest, opts ...grpc.CallOption) (*PingResponse, error) {
 	out := new(PingResponse)
 	err := c.cc.Invoke(ctx, "/spark.v1.SparkService/Ping", in, out, opts...)
@@ -97,8 +86,6 @@ type SparkServiceServer interface {
 	GetJobLogs(context.Context, *GetJobLogsRequest) (*GetJobLogsResponse, error)
 	// Get Job Status
 	GetJobStatus(context.Context, *GetJobStatusRequest) (*GetJobStatusResponse, error)
-	// Delete a job
-	DeleteJob(context.Context, *DeleteJobRequest) (*DeleteJobResponse, error)
 	// Ping the server
 	Ping(context.Context, *PingRequest) (*PingResponse, error)
 }
@@ -115,9 +102,6 @@ func (UnimplementedSparkServiceServer) GetJobLogs(context.Context, *GetJobLogsRe
 }
 func (UnimplementedSparkServiceServer) GetJobStatus(context.Context, *GetJobStatusRequest) (*GetJobStatusResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetJobStatus not implemented")
-}
-func (UnimplementedSparkServiceServer) DeleteJob(context.Context, *DeleteJobRequest) (*DeleteJobResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method DeleteJob not implemented")
 }
 func (UnimplementedSparkServiceServer) Ping(context.Context, *PingRequest) (*PingResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Ping not implemented")
@@ -188,24 +172,6 @@ func _SparkService_GetJobStatus_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
-func _SparkService_DeleteJob_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(DeleteJobRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(SparkServiceServer).DeleteJob(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/spark.v1.SparkService/DeleteJob",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(SparkServiceServer).DeleteJob(ctx, req.(*DeleteJobRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _SparkService_Ping_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(PingRequest)
 	if err := dec(in); err != nil {
@@ -242,10 +208,6 @@ var SparkService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetJobStatus",
 			Handler:    _SparkService_GetJobStatus_Handler,
-		},
-		{
-			MethodName: "DeleteJob",
-			Handler:    _SparkService_DeleteJob_Handler,
 		},
 		{
 			MethodName: "Ping",
