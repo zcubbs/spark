@@ -68,7 +68,12 @@ func main() {
 	if err != nil {
 		log.Fatal("failed to create jobs runner", "error", err)
 	}
-	defer jobsRunner.Shutdown()
+	defer func(jobsRunner *k8sJobs.Runner) {
+		err := jobsRunner.Shutdown()
+		if err != nil {
+			log.Error("failed to shutdown jobs runner", "error", err)
+		}
+	}(jobsRunner)
 
 	// Create the server instance
 	server, err := api.NewServer(cfg, jobsRunner)

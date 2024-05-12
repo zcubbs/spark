@@ -19,3 +19,20 @@
 - **Data processing applications**: Managing batch jobs for data transformation, analysis, or MLM training.
 - **General automation**: Running maintenance scripts, backups, and other periodic tasks within a Kubernetes cluster.
 - **CI/CD pipelines**: Automating deployment tasks, testing, and other operations that can be encapsulated as Kubernetes jobs.
+
+## Development
+
+### CLI Commands
+
+The CLI provides a set of commands to interact with the `Spark` system. To get started, run the following command:
+
+```bash
+go run .\cmd\cli\main.go --mode rest --image "busybox" --cmd "echo Hello World" --timeout 60
+```
+
+The command above will create a new job with the specified image, command, and timeout. You can also use the following flags to customize the job:
+
+- `--mode`: The mode of operation (`rest` or `grpc`).
+- `--image`: The Docker image to use for the job.
+- `--cmd`: The command to run inside the container.
+- `--timeout`: The maximum duration for the job to complete.

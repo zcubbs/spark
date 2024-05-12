@@ -9,6 +9,10 @@ import (
 	"strings"
 )
 
+const (
+	internalServerError = "Internal Error 500"
+)
+
 type Handler struct {
 	k8sRunner *k8sJobs.Runner
 	templates *template.Template
@@ -42,7 +46,7 @@ func (h *Handler) handleIndex(w http.ResponseWriter, _ *http.Request) {
 	err := h.templates.ExecuteTemplate(w, "index.html", nil)
 	if err != nil {
 		log.Error("failed to execute template", "error", err)
-		http.Error(w, "Internal Error 500", http.StatusInternalServerError)
+		http.Error(w, internalServerError, http.StatusInternalServerError)
 	}
 }
 
@@ -59,7 +63,7 @@ func (h *Handler) handleGetTasks(w http.ResponseWriter, _ *http.Request) {
 	err = h.templates.ExecuteTemplate(w, "tasks.html", tasks)
 	if err != nil {
 		log.Error("failed to execute template", "error", err)
-		http.Error(w, "Internal Error 500", http.StatusInternalServerError)
+		http.Error(w, internalServerError, http.StatusInternalServerError)
 	}
 }
 
@@ -79,7 +83,7 @@ func (h *Handler) handleGetLogs(w http.ResponseWriter, r *http.Request) {
 	_, err = w.Write([]byte("<html><body><pre>" + html.EscapeString(logs) + "</pre></body></html>"))
 	if err != nil {
 		log.Error("failed to write logs", "error", err)
-		http.Error(w, "Internal Error 500", http.StatusInternalServerError)
+		http.Error(w, internalServerError, http.StatusInternalServerError)
 		return
 	}
 }
@@ -94,7 +98,7 @@ func (h *Handler) handleGetCommand(w http.ResponseWriter, r *http.Request) {
 	_, err = w.Write([]byte("<html><body><pre>" + html.EscapeString(join(command, " ")) + "</pre></body></html>"))
 	if err != nil {
 		log.Error("failed to write command", "error", err)
-		http.Error(w, "Internal Error 500", http.StatusInternalServerError)
+		http.Error(w, internalServerError, http.StatusInternalServerError)
 		return
 	}
 }

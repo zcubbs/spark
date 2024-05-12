@@ -136,8 +136,9 @@ func (s *Server) StartHttpGateway(ctx context.Context) {
 	handler = handlers.CORS(origins, methods, headers)(handler)
 
 	s.httpGateway = &http.Server{
-		Addr:    fmt.Sprintf(":%d", s.cfg.HttpServer.ApiPort),
-		Handler: handler,
+		Addr:              fmt.Sprintf(":%d", s.cfg.HttpServer.ApiPort),
+		ReadHeaderTimeout: s.cfg.HttpServer.ReadHeaderTimeout,
+		Handler:           handler,
 	}
 
 	go func() {

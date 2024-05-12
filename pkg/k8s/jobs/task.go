@@ -3,6 +3,7 @@ package k8sJobs
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/charmbracelet/log"
 	"github.com/tidwall/buntdb"
@@ -25,6 +26,7 @@ type Task struct {
 // AddTask adds a task to the runner.
 func (r *Runner) AddTask(t Task) error {
 	t.CreatedAt = time.Now() // Set the creation time when the task is added
+	t.Status = "PENDING"
 
 	taskData, err := json.Marshal(t)
 	if err != nil {
@@ -83,9 +85,15 @@ func (r *Runner) handleTask(parentCtx context.Context, t Task) {
 	r.updateTaskStatus(t)
 
 	if _, err := r.createAndMonitorJob(taskCtx, r.namespace, t); err != nil {
-		log.Error("Failed to create or monitor job", "error", err, "jobId", t.ID)
-		t.Status = "FAILED"
-		t.Logs = fmt.Sprintf("Job monitoring failed: %v", err)
+		if errors.Is(err, context.DeadlineExceeded) {
+			log.Warn("Task timed out", "jobId", t.ID)
+			t.Status = "TIMEOUT"
+			t.Logs = fmt.Sprintf("Task timed out after %d seconds", t.Timeout)
+		} else {
+			log.Error("Failed to create or monitor job", "error", err, "jobId", t.ID)
+			t.Status = "FAILED"
+			t.Logs = fmt.Sprintf("Job monitoring failed: %v", err)
+		}
 	} else {
 		t.Status = "SUCCEEDED"
 		t.Logs, err = r.getLogs(taskCtx, t.ID) // Retrieve logs
@@ -116,12 +124,4 @@ func (r *Runner) updateTaskStatus(t Task) bool {
 	}
 
 	return true
-}
-
-func (r *Runner) handleTimeout(t Task) {
-	t.EndedAt = time.Now() // Set the timeout end time
-	t.Status = "TIMEOUT"
-	t.Logs = "Task timed out"
-	r.updateTaskStatus(t)
-	r.delete(context.Background(), t.ID) // Ensure context.Background() to avoid passing a canceled context
 }
