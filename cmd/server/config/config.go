@@ -19,6 +19,8 @@ type Configuration struct {
 	MaxConcurrentJobs int `mapstructure:"max_concurrent_jobs"`
 	// QueueBufferSize is the size of the job queue buffer.
 	QueueBufferSize int `mapstructure:"queue_buffer_size"`
+	// DefaultJobTimeout is the default timeout for a job.
+	DefaultJobTimeout int `mapstructure:"default_job_timeout"`
 	// RateLimitRequestsPerSecond is the maximum number of requests per second allowed.
 	RateLimitRequestsPerSecond int `mapstructure:"rate_limit_requests_per_second"`
 	// RateLimitBurst is the maximum number of requests that can be burst(ed).
@@ -33,7 +35,8 @@ type Configuration struct {
 }
 
 type HttpServerConfig struct {
-	Port         int    `mapstructure:"port"`
+	ApiPort      int    `mapstructure:"api_port"`
+	WebPort      int    `mapstructure:"web_port"`
 	AllowOrigins string `mapstructure:"allow_origins"`
 	AllowHeaders string `mapstructure:"allow_headers"`
 	TZ           string `mapstructure:"tz"`

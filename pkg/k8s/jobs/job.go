@@ -10,6 +10,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/utils/ptr"
 )
 
 func (r *Runner) createAndMonitorJob(ctx context.Context, namespace string, task Task) (*batchv1.Job, error) {
@@ -31,6 +32,7 @@ func (r *Runner) createAndMonitorJob(ctx context.Context, namespace string, task
 					RestartPolicy: corev1.RestartPolicyOnFailure,
 				},
 			},
+			ActiveDeadlineSeconds: ptr.To(int64(task.Timeout)), // Set the job timeout (in seconds),
 		},
 	}
 

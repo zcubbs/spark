@@ -2,26 +2,38 @@ package k8sJobs
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/charmbracelet/log"
 	"github.com/tidwall/buntdb"
-	"strings"
 	"time"
 )
 
 // Task represents a task to be executed by the runner.
 type Task struct {
-	ID      string
-	Command []string
-	Image   string
-	Timeout int
+	ID        string    `json:"id"`
+	Command   []string  `json:"command"`
+	Image     string    `json:"image"`
+	Timeout   int       `json:"timeout"`
+	CreatedAt time.Time `json:"created_at"`
+	StartedAt time.Time `json:"started_at"`
+	EndedAt   time.Time `json:"ended_at"`
+	Status    string    `json:"status"`
+	Logs      string    `json:"logs"`
 }
 
 // AddTask adds a task to the runner.
 func (r *Runner) AddTask(t Task) error {
-	err := r.db.Update(func(tx *buntdb.Tx) error {
-		_, _, err := tx.Set(t.ID, fmt.Sprintf("%s,%s,%s,QUEUED", t.ID, t.Image, strings.Join(t.Command, " ")), nil)
+	t.CreatedAt = time.Now() // Set the creation time when the task is added
+
+	taskData, err := json.Marshal(t)
+	if err != nil {
+		return err
+	}
+
+	err = r.db.Update(func(tx *buntdb.Tx) error {
+		_, _, err := tx.Set(t.ID, string(taskData), nil)
 		return err
 	})
 	if err != nil {
@@ -32,7 +44,6 @@ func (r *Runner) AddTask(t Task) error {
 	case r.taskChan <- t:
 		return nil // Successfully added the task
 	default:
-		// Handle the case when taskChan is full
 		return fmt.Errorf("task queue is full")
 	}
 }
@@ -43,7 +54,13 @@ func (r *Runner) processTasks(ctx context.Context) {
 		select {
 		case task := <-r.taskChan:
 			r.wg.Add(1)
-			go r.handleTask(ctx, task)
+			// Acquire a semaphore slot before processing a task
+			r.currentJobs <- struct{}{} // This will block if the limit is reached
+			go func(t Task) {
+				defer r.wg.Done()
+				defer func() { <-r.currentJobs }() // Release the semaphore slot after the task is processed
+				r.handleTask(ctx, t)
+			}(task)
 		case <-r.quit:
 			return
 		}
@@ -53,36 +70,35 @@ func (r *Runner) processTasks(ctx context.Context) {
 func (r *Runner) handleTask(ctx context.Context, t Task) {
 	defer r.wg.Done()
 
+	// set default timeout
+	if t.Timeout == 0 {
+		t.Timeout = r.defaultJobTimeout
+	}
+
+	t.StartedAt = time.Now() // Record when the task processing starts
 	log.Debug("Processing task", "jobId", t.ID, "image", t.Image, "command", t.Command)
 
-	// Set initial task status to RUNNING
-	if !(r.updateTaskStatus(t.ID, t.Image, t.Command, "RUNNING", "")) {
-		// If the task status update fails, return
+	// Update task status to RUNNING
+	if !r.updateTaskStatus(t, "RUNNING", "") {
 		return
 	}
 
-	defaultTimeout := 60
-	if t.Timeout > 0 {
-		defaultTimeout = t.Timeout
-	}
-
-	// Process the task with a timeout
-	jobCtx, cancel := context.WithTimeout(ctx, time.Duration(defaultTimeout)*time.Second)
-	defer cancel()
-
-	_, err := r.createAndMonitorJob(jobCtx, r.namespace, t)
+	// Attempt to create and monitor the Kubernetes job
+	_, err := r.createAndMonitorJob(ctx, r.namespace, t)
 	if err != nil {
-		if errors.Is(jobCtx.Err(), context.DeadlineExceeded) {
+		t.EndedAt = time.Now() // Set end time when task finishes or fails
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 			r.handleTimeout(t)
 		} else {
 			log.Error("Failed to create and monitor job", "error", err, "jobId", t.ID)
-			r.updateTaskStatus(t.ID, t.Image, t.Command, "FAILED", fmt.Sprintf("Job failed: %v", err))
+			r.updateTaskStatus(t, "FAILED", fmt.Sprintf("Job failed: %v", err))
 		}
 		r.delete(ctx, t.ID) // Cleanup after failure or timeout
 		return
 	}
 
-	// Retrieve logs and update task status to SUCCEEDED or FAILED based on log retrieval status
+	// Successfully completed the task
+	t.EndedAt = time.Now()
 	log.Debug("Retrieving logs", "jobId", t.ID)
 	logs, err := r.getLogs(ctx, t.ID)
 	finalStatus := "SUCCEEDED"
@@ -92,24 +108,34 @@ func (r *Runner) handleTask(ctx context.Context, t Task) {
 		log.Error("Failed to get logs", "error", err, "jobId", t.ID)
 	}
 
-	r.updateTaskStatus(t.ID, t.Image, t.Command, finalStatus, logs)
+	r.updateTaskStatus(t, finalStatus, logs)
 	r.delete(ctx, t.ID) // Cleanup after successful completion
 }
 
-func (r *Runner) updateTaskStatus(jobId, image string, command []string, status, logs string) bool {
-	err := r.db.Update(func(tx *buntdb.Tx) error {
-		_, _, err := tx.Set(jobId, fmt.Sprintf("%s,%s,%s,%s,%s",
-			jobId, image, strings.Join(command, " "), status, logs), nil)
+func (r *Runner) updateTaskStatus(t Task, status, logs string) bool {
+	t.Status = status
+	t.Logs = logs
+
+	taskData, err := json.Marshal(t)
+	if err != nil {
+		log.Error("Failed to serialize task", "error", err, "jobId", t.ID)
+		return false
+	}
+
+	err = r.db.Update(func(tx *buntdb.Tx) error {
+		_, _, err := tx.Set(t.ID, string(taskData), nil)
 		return err
 	})
 	if err != nil {
-		log.Error("Failed to update DB task status", "error", err, "jobId", jobId)
+		log.Error("Failed to update DB task status", "error", err, "jobId", t.ID)
+		return false
 	}
 
-	return err == nil
+	return true
 }
 
 func (r *Runner) handleTimeout(t Task) {
-	r.updateTaskStatus(t.ID, t.Image, t.Command, "TIMED OUT", "Job timed out")
+	t.EndedAt = time.Now() // Set the timeout end time
+	r.updateTaskStatus(t, "TIMED OUT", "Task timed out")
 	r.delete(context.Background(), t.ID) // Ensure context.Background() to avoid passing a canceled context
 }

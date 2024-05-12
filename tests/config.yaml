@@ -1,3 +1,4 @@
 debug: true
 dev_mode: true
 kubeconfig_path: default
+max_concurrent_jobs: 2

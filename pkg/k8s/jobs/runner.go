@@ -17,15 +17,17 @@ import (
 type Runner struct {
 	cs                *kubernetes.Clientset
 	maxConcurrentJobs int
+	defaultJobTimeout int
 	wg                sync.WaitGroup
 	taskChan          chan Task
 	quit              chan struct{}
 	namespace         string
+	currentJobs       chan struct{} // Semaphore to limit concurrent jobs
 
 	db *buntdb.DB
 }
 
-func New(ctx context.Context, kubeconfig string, maxConcurrentJobs, queueBufferSize int) (*Runner, error) {
+func New(ctx context.Context, kubeconfig string, maxConcurrentJobs, queueBufferSize, defaultJobTimeout int) (*Runner, error) {
 	kConfig, err := loadK8sConfig(kubeconfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load k8s config: %v", err)
@@ -42,13 +44,19 @@ func New(ctx context.Context, kubeconfig string, maxConcurrentJobs, queueBufferS
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %v", err)
 	}
+	err = db.CreateIndex("by_started", "*", buntdb.IndexJSON("started_at"))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create db index: %v", err)
+	}
 
 	r := &Runner{
 		cs:                cs,
 		maxConcurrentJobs: maxConcurrentJobs,
+		defaultJobTimeout: defaultJobTimeout,
 		taskChan:          make(chan Task, queueBufferSize),
 		quit:              make(chan struct{}),
 		namespace:         ns,
+		currentJobs:       make(chan struct{}, maxConcurrentJobs),
 		db:                db,
 	}
 

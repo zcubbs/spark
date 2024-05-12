@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en" class="bg-gray-800 min-h-screen">
+<head>
+  <meta charset="UTF-8">
+  <title>Task Dashboard</title>
+  <script src="/static/tailwindcss.js"></script>
+  <script src="/static/htmx.min.js"></script>
+  <script src="/static/moment.min.js"></script>
+</head>
+<body class="text-white">
+<div class="container mx-auto px-4">
+  <h1 class="text-3xl font-bold mt-10 mb-5">Task Dashboard</h1>
+  <div id="task-table" hx-get="/tasks" hx-trigger="load, every 5s" hx-swap="outerHTML">
+    <div class="text-center text-2xl">
+      Loading...
+    </div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    updateTimestamps();
+  });
+
+  function updateTimestamps() {
+    const timestamps = document.querySelectorAll('[data-timestamp]');
+    timestamps.forEach(function(element) {
+      const timestamp = element.getAttribute('data-timestamp');
+      if (timestamp !== '-') {
+        element.textContent = moment(timestamp).fromNow();
+      }
+    });
+  }
+
+  // If using HTMX to load dynamic content, bind to htmx specific events
+  document.body.addEventListener('htmx:afterSwap', function() {
+    updateTimestamps();
+  });
+</script>
+
+</body>
+</html>

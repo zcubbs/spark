@@ -61,7 +61,8 @@ func main() {
 	defer cancel()
 
 	// Create a new JobsRunner
-	jobsRunner, err := k8sJobs.New(ctx, cfg.KubeconfigPath, cfg.MaxConcurrentJobs, cfg.QueueBufferSize)
+	jobsRunner, err := k8sJobs.New(ctx,
+		cfg.KubeconfigPath, cfg.MaxConcurrentJobs, cfg.QueueBufferSize, cfg.DefaultJobTimeout)
 	if err != nil {
 		log.Fatal("failed to create jobs runner", "error", err)
 	}
@@ -80,6 +81,9 @@ func main() {
 
 	// Start the HTTP gateway
 	go server.StartHttpGateway(ctx)
+
+	// Start the Web server
+	go server.StartWebServer()
 
 	// Start the server
 	server.StartGrpcServer()

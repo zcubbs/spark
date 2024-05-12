@@ -4,7 +4,7 @@ Content-Type: application/json
 {
   "image": "busybox",
   "command": ["sh", "-c", "echo Hello World && sleep 10"],
-  "timeout": 120
+  "timeout": 20
 }
 
 ###
@@ -22,5 +22,14 @@ POST http://localhost:8000/v1/get_job_logs
 Content-Type: application/json
 
 {
-  "jobId": "spark-job-jukq7m0a7sgh12c"
+  "jobId": "spark-job-hxewflqlm4qodwi"
+}
+
+###
+
+POST http://localhost:8000/v1/get_job_status
+Content-Type: application/json
+
+{
+  "jobId": "spark-job-hxewflqlm4qodwi"
 }

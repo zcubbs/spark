@@ -9,6 +9,7 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/zcubbs/spark/cmd/server/config"
+	"github.com/zcubbs/spark/cmd/server/web"
 	"github.com/zcubbs/spark/gen/openapi"
 	sparkPb "github.com/zcubbs/spark/gen/proto/go/spark/v1"
 	"github.com/zcubbs/spark/internal/logger"
@@ -122,14 +123,36 @@ func (s *Server) StartHttpGateway(ctx context.Context) {
 
 	// server options
 	httpSrv := &http.Server{
-		Addr:              fmt.Sprintf(":%d", s.cfg.HttpServer.Port),
+		Addr:              fmt.Sprintf(":%d", s.cfg.HttpServer.ApiPort),
 		ReadHeaderTimeout: s.cfg.HttpServer.ReadHeaderTimeout,
 		Handler:           handler,
 	}
 
-	log.Info("🟢 starting HTTP Gateway server", "port", s.cfg.HttpServer.Port)
+	log.Info("🟢 starting HTTP Gateway server", "port", s.cfg.HttpServer.ApiPort)
 	if err := httpSrv.ListenAndServe(); err != nil {
 		log.Fatal("cannot start http server", "error", err)
+	}
+}
+
+func (s *Server) StartWebServer() {
+	mux := http.NewServeMux()
+
+	h, err := web.NewHandler(s.k8sRunner)
+	if err != nil {
+		log.Fatal("cannot create new handler", "error", err)
+	}
+	h.RegisterRoutes(mux)
+
+	// server options
+	httpSrv := &http.Server{
+		Addr:              fmt.Sprintf(":%d", s.cfg.HttpServer.WebPort),
+		ReadHeaderTimeout: s.cfg.HttpServer.ReadHeaderTimeout,
+		Handler:           mux,
+	}
+
+	log.Info("🟢 starting web server", "port", s.cfg.HttpServer.WebPort)
+	if err := httpSrv.ListenAndServe(); err != nil {
+		log.Fatal("cannot start web server", "error", err)
 	}
 }
 
