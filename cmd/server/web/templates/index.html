@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="en" class="bg-gray-800 min-h-screen">
+<html lang="en" class="dark:bg-gray-900 antialiased min-h-screen">
 <head>
   <meta charset="UTF-8">
-  <title>Task Dashboard</title>
+  <title>Spark - Task Dashboard</title>
   <script src="/static/tailwindcss.js"></script>
   <script src="/static/htmx.min.js"></script>
   <script src="/static/moment.min.js"></script>
@@ -13,7 +13,7 @@
   <div class="flex justify-center">
     <img src="/static/logo.png" alt="logo" class="w-32 mt-10 mb-10" />
   </div>
-  <div id="task-table" hx-get="/tasks" hx-trigger="load, every 5s" hx-swap="innerHTML">
+  <div id="task-table" hx-get="/tasks" hx-trigger="load, every 5s" hx-swap="outerHTML">
     <div class="text-center text-2xl">
       Loading...
     </div>
