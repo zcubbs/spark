@@ -79,14 +79,14 @@ dockers:
       - "--label=org.opencontainers.image.version={{.Version}}"
     ################################################################################################
 docker_manifests:
-  - name_template: ghcr.io/zcubbs/{{ .ProjectName }}:{{ .Version }}
+  - name_template: ghcr.io/zcubbs/{{ .ProjectName }}-server:{{ .Version }}
     image_templates:
-      - ghcr.io/zcubbs/{{ .ProjectName }}:{{ .Version }}-amd64
-      - ghcr.io/zcubbs/{{ .ProjectName }}:{{ .Version }}-arm64
-  - name_template: ghcr.io/zcubbs/{{ .ProjectName }}:latest
+      - ghcr.io/zcubbs/{{ .ProjectName }}-server:{{ .Version }}-amd64
+      - ghcr.io/zcubbs/{{ .ProjectName }}-server:{{ .Version }}-arm64
+  - name_template: ghcr.io/zcubbs/{{ .ProjectName }}-server:latest
     image_templates:
-      - ghcr.io/zcubbs/{{ .ProjectName }}:latest-amd64
-      - ghcr.io/zcubbs/{{ .ProjectName }}:latest-arm64
+      - ghcr.io/zcubbs/{{ .ProjectName }}-server:latest-amd64
+      - ghcr.io/zcubbs/{{ .ProjectName }}-server:latest-arm64
 changelog:
   sort: asc
   filters:
