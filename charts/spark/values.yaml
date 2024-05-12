@@ -66,6 +66,3 @@ server:
     initialDelaySeconds: 5
     periodSeconds: 10
   config: {}
-web:
-  image:
-    tag: 0.1.0

@@ -126,7 +126,6 @@ jobs:
           ls -rtl
           export NEW_VERSION=$(echo ${{ env.NEW_VERSION }} | sed 's/v//g')
           yq e ".server.image.tag = \"$NEW_VERSION\"" charts/${{ env.CHART_NAME }}/values.yaml -i
-          yq e ".web.image.tag = \"$NEW_VERSION\"" charts/${{ env.CHART_NAME }}/values.yaml -i
           yq e ".appVersion = \"$NEW_VERSION\"" charts/${{ env.CHART_NAME }}/Chart.yaml -i
           git add charts/${{ env.CHART_NAME }}/values.yaml
           git add charts/${{ env.CHART_NAME }}/Chart.yaml
