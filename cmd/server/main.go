@@ -55,7 +55,7 @@ func init() {
 	}
 	utils.CheckTimeZone()
 
-	log.Info("loaded configuration")
+	log.Info("loaded configuration", "path", *configPath)
 }
 
 func main() {

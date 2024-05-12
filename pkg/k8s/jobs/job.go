@@ -32,22 +32,19 @@ func (r *Runner) createAndMonitorJob(ctx context.Context, namespace string, task
 					RestartPolicy: corev1.RestartPolicyOnFailure,
 				},
 			},
-			ActiveDeadlineSeconds: ptr.To(int64(task.Timeout)), // Set the job timeout (in seconds),
+			ActiveDeadlineSeconds: ptr.To(int64(task.Timeout)), // Ensure jobs respect the task timeout
 		},
 	}
 
 	log.Debug("Creating job", "jobId", task.ID, "image", task.Image, "command", task.Command)
-	// Create the Kubernetes job
 	job, err := r.cs.BatchV1().Jobs(namespace).Create(ctx, job, metav1.CreateOptions{})
 	if err != nil {
 		log.Error("Failed to create job", "error", err)
 		return nil, err
 	}
 
-	// Monitor the job status until completion or failure
 	log.Debug("Waiting for job to complete...", "jobId", task.ID, "image", task.Image, "command", task.Command)
-	err = r.waitForJobCompletion(ctx, job)
-	if err != nil {
+	if err = r.waitForJobCompletion(ctx, job); err != nil {
 		log.Error("Failed to monitor job", "error", err)
 		return nil, fmt.Errorf("job monitoring failed: %v", err)
 	}
@@ -64,47 +61,46 @@ func (r *Runner) waitForJobCompletion(ctx context.Context, job *batchv1.Job) err
 	}
 	defer watcher.Stop()
 
-	return r.processJobEvents(watcher)
-}
-
-func (r *Runner) processJobEvents(watcher watch.Interface) error {
-	for event := range watcher.ResultChan() {
-		if err := r.handleJobEvent(event); err != nil {
-			return err
+	for {
+		select {
+		case event, ok := <-watcher.ResultChan():
+			if !ok {
+				return fmt.Errorf("job watch channel closed")
+			}
+			switch event.Type {
+			case watch.Error:
+				return fmt.Errorf("error watching job: %v", event.Object)
+			case watch.Deleted:
+				return fmt.Errorf("job deleted unexpectedly")
+			case watch.Added, watch.Modified:
+				job, ok := event.Object.(*batchv1.Job)
+				if !ok {
+					return fmt.Errorf("unexpected object type")
+				}
+				if done, err := r.evaluateJobStatus(job); done {
+					return err
+				}
+			}
+		case <-ctx.Done():
+			return ctx.Err()
 		}
 	}
-	return nil
 }
 
-func (r *Runner) handleJobEvent(event watch.Event) error {
-	switch event.Type {
-	case watch.Added, watch.Modified:
-		return r.evaluateJobStatus(event)
-	case watch.Deleted:
-		return fmt.Errorf("job deleted")
-	}
-	return nil
-}
-
-func (r *Runner) evaluateJobStatus(event watch.Event) error {
-	job, ok := event.Object.(*batchv1.Job)
-	if !ok {
-		return fmt.Errorf("unexpected type")
-	}
-
+func (r *Runner) evaluateJobStatus(job *batchv1.Job) (bool, error) {
 	for _, condition := range job.Status.Conditions {
 		switch condition.Type {
 		case batchv1.JobComplete:
 			if condition.Status == corev1.ConditionTrue {
-				return nil
+				return true, nil
 			}
 		case batchv1.JobFailed:
 			if condition.Status == corev1.ConditionTrue {
-				return fmt.Errorf("job failed")
+				return true, fmt.Errorf("job failed: %s", condition.Message)
 			}
 		}
 	}
-	return nil
+	return false, nil // Job has not yet reached a definitive state
 }
 
 // Delete deletes a pod in a Kubernetes cluster.

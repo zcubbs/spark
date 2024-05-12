@@ -3,7 +3,6 @@ package k8sJobs
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/charmbracelet/log"
 	"github.com/tidwall/buntdb"
@@ -54,11 +53,8 @@ func (r *Runner) processTasks(ctx context.Context) {
 		select {
 		case task := <-r.taskChan:
 			r.wg.Add(1)
-			// Acquire a semaphore slot before processing a task
-			r.currentJobs <- struct{}{} // This will block if the limit is reached
 			go func(t Task) {
 				defer r.wg.Done()
-				defer func() { <-r.currentJobs }() // Release the semaphore slot after the task is processed
 				r.handleTask(ctx, t)
 			}(task)
 		case <-r.quit:
@@ -67,55 +63,43 @@ func (r *Runner) processTasks(ctx context.Context) {
 	}
 }
 
-func (r *Runner) handleTask(ctx context.Context, t Task) {
-	defer r.wg.Done()
+// handleTask handles a task by creating a job, monitoring it, and updating the task status.
+func (r *Runner) handleTask(parentCtx context.Context, t Task) {
+	// Acquire a semaphore slot before processing a task
+	r.currentJobs <- struct{}{}        // This will block if the limit is reached
+	defer func() { <-r.currentJobs }() // Release the semaphore slot after the task is processed
 
-	// set default timeout
 	if t.Timeout == 0 {
 		t.Timeout = r.defaultJobTimeout
 	}
 
-	t.StartedAt = time.Now() // Record when the task processing starts
+	// Create a new context with a timeout for the task
+	taskCtx, cancel := context.WithTimeout(parentCtx, time.Duration(t.Timeout)*time.Second+5*time.Second)
+	defer cancel()
+
+	t.StartedAt = time.Now()
 	log.Debug("Processing task", "jobId", t.ID, "image", t.Image, "command", t.Command)
+	t.Status = "RUNNING"
+	r.updateTaskStatus(t)
 
-	// Update task status to RUNNING
-	if !r.updateTaskStatus(t, "RUNNING", "") {
-		return
-	}
-
-	// Attempt to create and monitor the Kubernetes job
-	_, err := r.createAndMonitorJob(ctx, r.namespace, t)
-	if err != nil {
-		t.EndedAt = time.Now() // Set end time when task finishes or fails
-		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-			r.handleTimeout(t)
-		} else {
-			log.Error("Failed to create and monitor job", "error", err, "jobId", t.ID)
-			r.updateTaskStatus(t, "FAILED", fmt.Sprintf("Job failed: %v", err))
+	if _, err := r.createAndMonitorJob(taskCtx, r.namespace, t); err != nil {
+		log.Error("Failed to create or monitor job", "error", err, "jobId", t.ID)
+		t.Status = "FAILED"
+		t.Logs = fmt.Sprintf("Job monitoring failed: %v", err)
+	} else {
+		t.Status = "SUCCEEDED"
+		t.Logs, err = r.getLogs(taskCtx, t.ID) // Retrieve logs
+		if err != nil {
+			log.Error("Failed to get logs", "error", err, "jobId", t.ID)
 		}
-		r.delete(ctx, t.ID) // Cleanup after failure or timeout
-		return
 	}
 
-	// Successfully completed the task
 	t.EndedAt = time.Now()
-	log.Debug("Retrieving logs", "jobId", t.ID)
-	logs, err := r.getLogs(ctx, t.ID)
-	finalStatus := "SUCCEEDED"
-	if err != nil {
-		finalStatus = "FAILED"
-		logs = fmt.Sprintf("Failed to get logs: %v", err)
-		log.Error("Failed to get logs", "error", err, "jobId", t.ID)
-	}
-
-	r.updateTaskStatus(t, finalStatus, logs)
-	r.delete(ctx, t.ID) // Cleanup after successful completion
+	r.updateTaskStatus(t)
+	r.delete(taskCtx, t.ID) // Use task-specific context for deletion
 }
 
-func (r *Runner) updateTaskStatus(t Task, status, logs string) bool {
-	t.Status = status
-	t.Logs = logs
-
+func (r *Runner) updateTaskStatus(t Task) bool {
 	taskData, err := json.Marshal(t)
 	if err != nil {
 		log.Error("Failed to serialize task", "error", err, "jobId", t.ID)
@@ -136,6 +120,8 @@ func (r *Runner) updateTaskStatus(t Task, status, logs string) bool {
 
 func (r *Runner) handleTimeout(t Task) {
 	t.EndedAt = time.Now() // Set the timeout end time
-	r.updateTaskStatus(t, "TIMED OUT", "Task timed out")
+	t.Status = "TIMEOUT"
+	t.Logs = "Task timed out"
+	r.updateTaskStatus(t)
 	r.delete(context.Background(), t.ID) // Ensure context.Background() to avoid passing a canceled context
 }

@@ -46,6 +46,26 @@ func (r *Runner) GetStatusForTaskFromDB(taskId string) (string, error) {
 	return status, nil
 }
 
+func (r *Runner) GetCommandForTaskFromDB(taskId string) ([]string, error) {
+	var command []string
+	err := r.db.View(func(tx *buntdb.Tx) error {
+		val, err := tx.Get(taskId)
+		if err != nil {
+			return err
+		}
+		var task Task
+		if err := json.Unmarshal([]byte(val), &task); err != nil {
+			return err
+		}
+		command = task.Command
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return command, nil
+}
+
 func (r *Runner) GetTaskFromDB(taskId string) (*Task, error) {
 	var task Task
 	err := r.db.View(func(tx *buntdb.Tx) error {

@@ -31,13 +31,14 @@ func NewHandler(k8sRunner *k8sJobs.Runner) (*Handler, error) {
 }
 
 func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("/static/", h.HandleGetStaticFiles)
-	mux.HandleFunc("/logs/", h.HandleGetLogs)
-	mux.HandleFunc("/tasks", h.HandleGetTasks)
-	mux.HandleFunc("/", h.HandleIndex)
+	mux.HandleFunc("/static/", h.handleGetStaticFiles)
+	mux.HandleFunc("/command/", h.handleGetCommand)
+	mux.HandleFunc("/logs/", h.handleGetLogs)
+	mux.HandleFunc("/tasks", h.handleGetTasks)
+	mux.HandleFunc("/", h.handleIndex)
 }
 
-func (h *Handler) HandleIndex(w http.ResponseWriter, _ *http.Request) {
+func (h *Handler) handleIndex(w http.ResponseWriter, _ *http.Request) {
 	err := h.templates.ExecuteTemplate(w, "index.html", nil)
 	if err != nil {
 		log.Error("failed to execute template", "error", err)
@@ -45,7 +46,7 @@ func (h *Handler) HandleIndex(w http.ResponseWriter, _ *http.Request) {
 	}
 }
 
-func (h *Handler) HandleGetTasks(w http.ResponseWriter, _ *http.Request) {
+func (h *Handler) handleGetTasks(w http.ResponseWriter, _ *http.Request) {
 	// Fetch tasks directly as structs from the DB
 	tasks, err := h.k8sRunner.GetAllTasksFromDB()
 	if err != nil {
@@ -62,13 +63,13 @@ func (h *Handler) HandleGetTasks(w http.ResponseWriter, _ *http.Request) {
 	}
 }
 
-func (h *Handler) HandleGetStaticFiles(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) handleGetStaticFiles(w http.ResponseWriter, r *http.Request) {
 	log.Debug("serving static file", "path", r.URL.Path)
 	staticFileHandler := http.FileServer(http.FS(FsStaticFiles))
 	staticFileHandler.ServeHTTP(w, r)
 }
 
-func (h *Handler) HandleGetLogs(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) handleGetLogs(w http.ResponseWriter, r *http.Request) {
 	taskID := strings.TrimPrefix(r.URL.Path, "/logs/")
 	logs, err := h.k8sRunner.GetLogsForTaskFromDB(taskID)
 	if err != nil {
@@ -78,6 +79,21 @@ func (h *Handler) HandleGetLogs(w http.ResponseWriter, r *http.Request) {
 	_, err = w.Write([]byte("<html><body><pre>" + html.EscapeString(logs) + "</pre></body></html>"))
 	if err != nil {
 		log.Error("failed to write logs", "error", err)
+		http.Error(w, "Internal Error 500", http.StatusInternalServerError)
+		return
+	}
+}
+
+func (h *Handler) handleGetCommand(w http.ResponseWriter, r *http.Request) {
+	taskID := strings.TrimPrefix(r.URL.Path, "/command/")
+	command, err := h.k8sRunner.GetCommandForTaskFromDB(taskID)
+	if err != nil {
+		http.Error(w, "Failed to fetch command", http.StatusInternalServerError)
+		return
+	}
+	_, err = w.Write([]byte("<html><body><pre>" + html.EscapeString(join(command, " ")) + "</pre></body></html>"))
+	if err != nil {
+		log.Error("failed to write command", "error", err)
 		http.Error(w, "Internal Error 500", http.StatusInternalServerError)
 		return
 	}
