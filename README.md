@@ -69,7 +69,12 @@ Defines the structure of a job task.
 ```go
 // You can replace "default" with the desired path 
 // or pass an empty string for the current namespace if in-cluster.
-runner, err := k8sJobs.New(context.Background(), "default", 5, 100)
+runner, err := k8sJobs.New(context.Background(), 
+    "default", // kubernetes config location
+    5, // max concurrent jobs
+    100, // max job queue size
+    60, // default job timeout
+)
 if err != nil {
     log.Fatalf("Failed to start runner: %v", err)
 }
@@ -89,6 +94,12 @@ if err := runner.AddTask(task); err != nil {
 
 runner.Shutdown()
 ```
+
+## Dashboard
+
+The dashboard provides a minimalist & quick read-only access to the job statuses and logs.
+
+![](./docs/assets/dashboard.png)
 
 ## Development
 
