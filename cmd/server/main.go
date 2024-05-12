@@ -10,6 +10,8 @@ import (
 	k8sJobs "github.com/zcubbs/spark/pkg/k8s/jobs"
 	"github.com/zcubbs/x/pretty"
 	"os"
+	"os/signal"
+	"syscall"
 )
 
 var (
@@ -57,34 +59,34 @@ func init() {
 }
 
 func main() {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	log.Info("Starting server...", "version", Version, "commit", Commit, "date", Date)
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
 
-	// Create a new JobsRunner
-	jobsRunner, err := k8sJobs.New(ctx,
-		cfg.KubeconfigPath, cfg.MaxConcurrentJobs, cfg.QueueBufferSize, cfg.DefaultJobTimeout)
+	// Create the Kubernetes jobs runner
+	jobsRunner, err := k8sJobs.New(ctx, cfg.KubeconfigPath, cfg.MaxConcurrentJobs, cfg.QueueBufferSize, cfg.DefaultJobTimeout)
 	if err != nil {
 		log.Fatal("failed to create jobs runner", "error", err)
 	}
-	defer func(jobsRunner *k8sJobs.Runner) {
-		err := jobsRunner.Shutdown()
-		if err != nil {
-			log.Error("failed to shutdown jobs runner", "error", err)
-		}
-	}(jobsRunner)
+	defer jobsRunner.Shutdown()
 
-	// Create a new server
+	// Create the server instance
 	server, err := api.NewServer(cfg, jobsRunner)
 	if err != nil {
 		log.Fatal("failed to create server", "error", err)
 	}
 
-	// Start the HTTP gateway
-	go server.StartHttpGateway(ctx)
+	// Start the servers instances in goroutines
+	server.StartGrpcServer(ctx)
+	server.StartHttpGateway(ctx)
+	server.StartWebServer(ctx)
 
-	// Start the Web server
-	go server.StartWebServer()
+	// Wait for a shutdown signal
+	<-ctx.Done()
 
-	// Start the server
-	server.StartGrpcServer()
+	// Shutdown process
+	log.Info("Shutting down servers...")
+	server.Shutdown()
+
+	log.Info("Server shutdown complete")
 }

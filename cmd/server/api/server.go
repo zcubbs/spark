@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"embed"
+	"errors"
 	"fmt"
 	"github.com/charmbracelet/log"
 	"github.com/gorilla/handlers"
@@ -25,6 +26,7 @@ import (
 	"mime"
 	"net"
 	"net/http"
+	"time"
 )
 
 type Server struct {
@@ -35,6 +37,10 @@ type Server struct {
 	k8sRunner *k8sJobs.Runner
 
 	limiter *rate.Limiter
+
+	grpcServer  *grpc.Server
+	httpGateway *http.Server
+	webServer   *http.Server
 }
 
 func NewServer(cfg *config.Configuration, jobRunner *k8sJobs.Runner) (*Server, error) {
@@ -56,10 +62,14 @@ func NewServer(cfg *config.Configuration, jobRunner *k8sJobs.Runner) (*Server, e
 	return s, nil
 }
 
-func (s *Server) StartGrpcServer() {
+func (s *Server) StartGrpcServer(ctx context.Context) {
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", s.cfg.GrpcServer.Port))
+	if err != nil {
+		log.Fatal("cannot listen", "error", err, "port", s.cfg.GrpcServer.Port)
+	}
+
 	var tlsOpt grpc.ServerOption
 	if s.cfg.GrpcServer.Tls.Enabled {
-		var err error
 		tlsOpt, err = newServerTlsOptions(s.cfg.GrpcServer)
 		if err != nil {
 			log.Fatal("cannot create new server tls options", "error", err)
@@ -71,22 +81,26 @@ func (s *Server) StartGrpcServer() {
 	// Logging and rate limiting interceptors
 	unifiedInterceptors := grpc.ChainUnaryInterceptor(logger.GrpcLogger, s.unaryRateLimitInterceptor)
 
-	grpcServer := grpc.NewServer(unifiedInterceptors, tlsOpt)
-	sparkPb.RegisterSparkServiceServer(grpcServer, s)
+	s.grpcServer = grpc.NewServer(unifiedInterceptors, tlsOpt)
+	sparkPb.RegisterSparkServiceServer(s.grpcServer, s)
 
 	if s.cfg.GrpcServer.EnableReflection {
-		reflection.Register(grpcServer)
+		reflection.Register(s.grpcServer)
 	}
 
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", s.cfg.GrpcServer.Port))
-	if err != nil {
-		log.Fatal("cannot listen", "error", err, "port", s.cfg.GrpcServer.Port)
-	}
+	go func() {
+		log.Info("🟢 starting grpc server", "port", s.cfg.GrpcServer.Port)
+		if err := s.grpcServer.Serve(lis); err != nil && !errors.Is(err, grpc.ErrServerStopped) {
+			log.Error("failed to serve gRPC", "error", err)
+		}
+	}()
 
-	log.Info("🟢 starting grpc server", "port", s.cfg.GrpcServer.Port)
-	if err := grpcServer.Serve(lis); err != nil {
-		log.Fatal("cannot start grpc server", "error", err)
-	}
+	// Listen for context cancellation and gracefully stop the server
+	go func() {
+		<-ctx.Done()
+		s.grpcServer.GracefulStop()
+		log.Info("gRPC server shutdown gracefully")
+	}()
 }
 
 func (s *Server) StartHttpGateway(ctx context.Context) {
@@ -121,20 +135,31 @@ func (s *Server) StartHttpGateway(ctx context.Context) {
 	headers := handlers.AllowedHeaders([]string{"Content-Type", "Authorization"})
 	handler = handlers.CORS(origins, methods, headers)(handler)
 
-	// server options
-	httpSrv := &http.Server{
-		Addr:              fmt.Sprintf(":%d", s.cfg.HttpServer.ApiPort),
-		ReadHeaderTimeout: s.cfg.HttpServer.ReadHeaderTimeout,
-		Handler:           handler,
+	s.httpGateway = &http.Server{
+		Addr:    fmt.Sprintf(":%d", s.cfg.HttpServer.ApiPort),
+		Handler: handler,
 	}
 
-	log.Info("🟢 starting HTTP Gateway server", "port", s.cfg.HttpServer.ApiPort)
-	if err := httpSrv.ListenAndServe(); err != nil {
-		log.Fatal("cannot start http server", "error", err)
-	}
+	go func() {
+		log.Info("🟢 starting HTTP Gateway", "port", s.cfg.HttpServer.ApiPort)
+		if err := s.httpGateway.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
+			log.Error("HTTP gateway server stopped unexpectedly", "error", err)
+		}
+	}()
+
+	// Listen for context cancellation and shutdown the HTTP gateway server gracefully
+	go func() {
+		<-ctx.Done()
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := s.httpGateway.Shutdown(shutdownCtx); err != nil {
+			log.Error("failed to shutdown HTTP gateway", "error", err)
+		}
+		log.Info("HTTP gateway shutdown gracefully")
+	}()
 }
 
-func (s *Server) StartWebServer() {
+func (s *Server) StartWebServer(ctx context.Context) {
 	mux := http.NewServeMux()
 
 	h, err := web.NewHandler(s.k8sRunner)
@@ -143,17 +168,29 @@ func (s *Server) StartWebServer() {
 	}
 	h.RegisterRoutes(mux)
 
-	// server options
-	httpSrv := &http.Server{
+	s.webServer = &http.Server{
 		Addr:              fmt.Sprintf(":%d", s.cfg.HttpServer.WebPort),
 		ReadHeaderTimeout: s.cfg.HttpServer.ReadHeaderTimeout,
 		Handler:           mux,
 	}
 
-	log.Info("🟢 starting web server", "port", s.cfg.HttpServer.WebPort)
-	if err := httpSrv.ListenAndServe(); err != nil {
-		log.Fatal("cannot start web server", "error", err)
-	}
+	go func() {
+		log.Info("🟢 starting web server", "port", s.cfg.HttpServer.WebPort)
+		if err := s.webServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Error("Web server stopped unexpectedly", "error", err)
+		}
+	}()
+
+	// Listen for context cancellation and shutdown the web server gracefully
+	go func() {
+		<-ctx.Done()
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := s.webServer.Shutdown(shutdownCtx); err != nil {
+			log.Error("failed to shutdown web server", "error", err)
+		}
+		log.Info("Web server shutdown gracefully")
+	}()
 }
 
 func newGrpcRuntimeServerMux() *runtime.ServeMux {
@@ -188,7 +225,7 @@ type EmbedAssetsOpts struct {
 }
 
 func newFileServerHandler(opts EmbedAssetsOpts) http.Handler {
-	log.Info("serving embedded assets", "path", opts.Path)
+	log.Debug("serving embedded assets", "path", opts.Path)
 	sub, err := fs.Sub(opts.Dir, opts.Prefix)
 	if err != nil {
 		log.Fatal("cannot serve embedded assets", "error", err)
@@ -213,4 +250,24 @@ func rateLimitMiddleware(limiter *rate.Limiter, next http.Handler) http.Handler 
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+func (s *Server) Shutdown() {
+	// Context with timeout for graceful shutdown
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// Shut down HTTP Gateway
+	if err := s.httpGateway.Shutdown(ctx); err != nil {
+		log.Error("failed to shutdown HTTP gateway", "error", err)
+	}
+
+	// Shut down Web Server
+	if err := s.webServer.Shutdown(ctx); err != nil {
+		log.Error("failed to shutdown web server", "error", err)
+	}
+
+	// Stop gRPC server
+	s.grpcServer.GracefulStop()
+	log.Info("Servers have been shutdown gracefully")
 }
