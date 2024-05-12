@@ -2,5 +2,5 @@ apiVersion: v2
 name: spark
 description: Spark is designed to manage and monitor Kubernetes jobs efficiently
 type: application
-version: 0.1.0
+version: 0.1.1
 appVersion: 0.1.0
